@@ -14,7 +14,7 @@ LazyAZ provides a convenient terminal interface to interact with Azure DevOps se
 
 - Go 1.16 or higher
 - Azure DevOps account
-- Personal Access Token (PAT) with appropriate permissions
+- Azure CLI installed with the Azure DevOps extension
 
 ## Setup
 
@@ -29,20 +29,39 @@ LazyAZ provides a convenient terminal interface to interact with Azure DevOps se
    go mod download
    ```
 
-## Environment Variables
+## Authentication
 
-LazyAZ requires the following environment variables:
+LazyAZ now uses Azure CLI for authentication instead of a personal access token. Make sure you have logged in with Azure CLI before using the application:
+
+```bash
+az login
+az devops configure --defaults organization=https://dev.azure.com/your-organization
+```
+
+You can also set a default project in the Azure DevOps configuration file:
+
+```
+[defaults]
+organization = your-org-name
+project = your-project-name
+```
+
+This configuration is stored in `~/.azure/azuredevops/config`.
+
+### Environment Variables
+
+While the application now primarily uses Azure CLI for authentication, you can still set the following environment variable:
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| AZURE_DEVOPS_ORG | Your Azure DevOps organization name | Yes |
-| AZURE_DEVOPS_TOKEN | Personal Access Token with appropriate permissions | Yes |
+| AZURE_DEVOPS_ORG | Your Azure DevOps organization name | No (if configured in Azure CLI) |
+| AZURE_DEVOPS_PROJECT | Your default Azure DevOps project | No (if configured in Azure CLI) |
 
 You can set these environment variables in your shell:
 
 ```bash
 export AZURE_DEVOPS_ORG="your-organization"
-export AZURE_DEVOPS_TOKEN="your-personal-access-token"
+export AZURE_DEVOPS_PROJECT="your-project"
 ```
 
 Or create a `.env` file (make sure to add to `.gitignore`) and load it before running the application.
@@ -94,7 +113,7 @@ Using the run.sh script (recommended for environment variables setup):
 ./run.sh
 ```
 
-This script allows you to set your Azure DevOps organization and token in one place and run the application. Edit the script to add your own values.
+This script allows you to set your Azure DevOps organization in one place and run the application. The application uses Azure CLI for authentication, so make sure you're logged in with `az login` before running.
 
 ## Testing
 

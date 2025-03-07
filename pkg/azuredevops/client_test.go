@@ -1,77 +1,70 @@
 package azuredevops
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
+// mockExecCommand is used to mock exec.Command for testing
+func mockExecCommand(mockOutput string, mockError error) func(command string, args ...string) *exec.Cmd {
+	return func(command string, args ...string) *exec.Cmd {
+		cmd := exec.Command("echo", mockOutput)
+		return cmd
+	}
+}
+
+// mockExecCommandError is used to mock exec.Command for testing error scenarios
+func mockExecCommandError(mockError error) func(command string, args ...string) *exec.Cmd {
+	return func(command string, args ...string) *exec.Cmd {
+		cmd := exec.Command("test")
+	// This will cause the command to fail with the specified error
+	cmd.Stderr = exec.Command("echo", mockError.Error()).Stdout
+		return cmd
+	}
+}
+
 func TestClient_FetchProjects(t *testing.T) {
-	// Setup mock server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify request headers
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			t.Error("Authorization header is missing")
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		// Verify request path
-		if r.URL.Path != "/_apis/projects" {
-			t.Errorf("Expected path /_apis/projects, got %s", r.URL.Path)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		// Return mock response
-		mockProjects := ProjectsResponse{
-			Count: 2,
-			Value: []Project{
-				{
-					ID:          "project1",
-					Name:        "Test Project 1",
-					Description: "Description for Test Project 1",
-					URL:         "https://dev.azure.com/org/project1",
-					State:       "wellFormed",
-					LastUpdated: time.Now(),
-				},
-				{
-					ID:          "project2",
-					Name:        "Test Project 2",
-					Description: "Description for Test Project 2",
-					URL:         "https://dev.azure.com/org/project2",
-					State:       "wellFormed",
-					LastUpdated: time.Now(),
-				},
+	// Create mock response JSON
+	mockResponseJSON := `{
+		"count": 2,
+		"value": [
+			{
+				"id": "project1",
+				"name": "Test Project 1",
+				"description": "Description for Test Project 1",
+				"url": "https://dev.azure.com/testorg/project1",
+				"state": "wellFormed",
+				"visibility": "private",
+				"lastUpdateTime": "2023-01-01T12:00:00Z"
 			},
-		}
+			{
+				"id": "project2",
+				"name": "Test Project 2",
+				"description": "Description for Test Project 2",
+				"url": "https://dev.azure.com/testorg/project2",
+				"state": "wellFormed",
+				"visibility": "private",
+				"lastUpdateTime": "2023-01-01T12:00:00Z"
+			}
+		]
+	}`
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(mockProjects)
-	}))
-	defer server.Close()
+	// Store original exec.Command
+	origExecCommand := execCommand
+	defer func() { execCommand = origExecCommand }()
 
-	// Create a test client that points to the mock server
+	// Mock the exec.Command to return our test data
+	execCommand = mockExecCommand(mockResponseJSON, nil)
+
+	// Create config and client
 	config := &Config{
 		Organization: "testorg",
-		Token:        "testtoken",
 		Project:      "testproject",
 	}
 	client := NewClient(config)
-	
-	// Override the HTTP client to use the test server's URL
-	client.HTTPClient = server.Client()
-	
-	// Replace the server URL in the FetchProjects method
-	// Override the base URL for testing
-	client.baseURL = server.URL
 
 	// Execute the test
 	projects, err := client.FetchProjects()
@@ -84,6 +77,118 @@ func TestClient_FetchProjects(t *testing.T) {
 	if len(projects) != 2 {
 		t.Fatalf("Expected 2 projects, got %d", len(projects))
 	}
+
+	// Verify project details
+	if projects[0].Name != "Test Project 1" {
+		t.Errorf("Expected project name 'Test Project 1', got '%s'", projects[0].Name)
+	}
+
+	if projects[1].Name != "Test Project 2" {
+		t.Errorf("Expected project name 'Test Project 2', got '%s'", projects[1].Name)
+	}
+}
+
+func TestClient_FetchProjects_Error(t *testing.T) {
+	// Store original exec.Command
+	origExecCommand := execCommand
+	defer func() { execCommand = origExecCommand }()
+
+	// Mock the exec.Command to return an error
+	execCommand = mockExecCommandError(errors.New("CLI execution failed"))
+
+	// Create config and client
+	config := &Config{
+		Organization: "testorg",
+		Project:      "testproject",
+	}
+	client := NewClient(config)
+
+	// Execute the test
+	projects, err := client.FetchProjects()
+
+	// Verify the results
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	if projects != nil {
+		t.Fatalf("Expected nil projects, got %+v", projects)
+	}
+}
+
+func TestClient_GetProject(t *testing.T) {
+	// Create mock response JSON
+	mockResponseJSON := `{
+		"id": "project1",
+		"name": "Test Project 1",
+		"description": "Description for Test Project 1",
+		"url": "https://dev.azure.com/testorg/project1",
+		"state": "wellFormed",
+		"visibility": "private",
+		"lastUpdateTime": "2023-01-01T12:00:00Z"
+	}`
+
+	// Store original exec.Command
+	origExecCommand := execCommand
+	defer func() { execCommand = origExecCommand }()
+
+	// Mock the exec.Command to return our test data
+	execCommand = mockExecCommand(mockResponseJSON, nil)
+
+	// Create config and client
+	config := &Config{
+		Organization: "testorg",
+		Project:      "testproject",
+	}
+	client := NewClient(config)
+
+	// Execute the test
+	project, err := client.GetProject("Test Project 1")
+
+	// Verify the results
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if project == nil {
+		t.Fatal("Expected project, got nil")
+	}
+
+	if project.Name != "Test Project 1" {
+		t.Errorf("Expected project name 'Test Project 1', got '%s'", project.Name)
+	}
+
+	if project.ID != "project1" {
+		t.Errorf("Expected project ID 'project1', got '%s'", project.ID)
+	}
+}
+
+func TestClient_GetProject_Error(t *testing.T) {
+	// Store original exec.Command
+	origExecCommand := execCommand
+	defer func() { execCommand = origExecCommand }()
+
+	// Mock the exec.Command to return an error
+	execCommand = mockExecCommandError(errors.New("CLI execution failed"))
+
+	// Create config and client
+	config := &Config{
+		Organization: "testorg",
+		Project:      "testproject",
+	}
+	client := NewClient(config)
+
+	// Execute the test
+	project, err := client.GetProject("Test Project 1")
+
+	// Verify the results
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	if project != nil {
+		t.Fatalf("Expected nil project, got %+v", project)
+	}
 }
 
 func TestNewConfig(t *testing.T) {
@@ -94,7 +199,7 @@ func TestNewConfig(t *testing.T) {
 		config, err := NewConfig()
 		
 		if err == nil {
-			t.Error("Expected error for missing configuration, got nil")
+			t.Error("Expected error for missing organization configuration, got nil")
 		}
 		
 		if config != nil {
@@ -106,7 +211,6 @@ func TestNewConfig(t *testing.T) {
 	t.Run("Valid variables", func(t *testing.T) {
 		os.Clearenv()
 		os.Setenv("AZURE_DEVOPS_ORG", "testorg")
-		os.Setenv("AZURE_DEVOPS_TOKEN", "testtoken")
 		os.Setenv("AZURE_DEVOPS_PROJECT", "testproject")
 		
 		config, err := NewConfig()
@@ -123,27 +227,25 @@ func TestNewConfig(t *testing.T) {
 			t.Errorf("Expected organization 'testorg', got '%s'", config.Organization)
 		}
 		
-		if config.Token != "testtoken" {
-			t.Errorf("Expected token 'testtoken', got '%s'", config.Token)
-		}
-		
 		if config.Project != "testproject" {
 			t.Errorf("Expected project 'testproject', got '%s'", config.Project)
 		}
 	})
 	
-	// Test reading from config file with temporary mock file
-	t.Run("Read organization and project from config file", func(t *testing.T) {
-		// Create mock config file
+	// Helper function to set up and clean up config file for tests
+	setupConfigTest := func(t *testing.T, configContent string) (string, func()) {
+		// Get home directory
 		home, err := os.UserHomeDir()
 		if err != nil {
-			t.Skip("Unable to determine home directory, skipping test")
+			t.Skipf("Unable to determine home directory: %v - skipping test", err)
+			return "", func() {}
 		}
 		
+		// Create config directory
 		configDir := filepath.Join(home, ".azure", "azuredevops")
-		err = os.MkdirAll(configDir, 0755)
-		if err != nil {
-			t.Skip("Unable to create config directory, skipping test")
+		if err = os.MkdirAll(configDir, 0755); err != nil {
+			t.Skipf("Unable to create config directory: %v - skipping test", err)
+			return "", func() {}
 		}
 		
 		configPath := filepath.Join(configDir, "config")
@@ -151,34 +253,45 @@ func TestNewConfig(t *testing.T) {
 		// Create backup of existing file if it exists
 		existingConfig := ""
 		if _, err := os.Stat(configPath); err == nil {
-			configContent, err := ioutil.ReadFile(configPath)
-			if err == nil {
-				existingConfig = string(configContent)
+			configData, readErr := os.ReadFile(configPath)
+			if readErr == nil {
+				existingConfig = string(configData)
+			} else {
+				t.Logf("Warning: could not read existing config for backup: %v", readErr)
 			}
 		}
 		
-		// Write test config content with both organization and project
+		// Write test config content
+		if err = os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+			t.Skipf("Unable to write config file: %v - skipping test", err)
+			return "", func() {}
+		}
+		
+		// Return cleanup function
+		cleanup := func() {
+			if existingConfig != "" {
+				_ = os.WriteFile(configPath, []byte(existingConfig), 0644)
+			} else {
+				_ = os.Remove(configPath)
+			}
+		}
+		
+		return configPath, cleanup
+	}
+
+	// Test reading from config file with temporary mock file
+	t.Run("Read organization and project from config file", func(t *testing.T) {
+		// Create mock config file with both organization and project
 		configContent := `[defaults]
 organization = configorg
 project = configproject
 `
-		err = ioutil.WriteFile(configPath, []byte(configContent), 0644)
-		if err != nil {
-			t.Skip("Unable to write config file, skipping test")
-		}
+		_, cleanup := setupConfigTest(t, configContent)
+		defer cleanup()
 		
-		// Clean up after test
-		defer func() {
-			if existingConfig != "" {
-				ioutil.WriteFile(configPath, []byte(existingConfig), 0644)
-			} else {
-				os.Remove(configPath)
-			}
-		}()
 		
 		// Run the test with token from env variable but org from config
 		os.Clearenv()
-		os.Setenv("AZURE_DEVOPS_TOKEN", "testtoken")
 		
 		config, err := NewConfig()
 		
@@ -197,58 +310,19 @@ project = configproject
 		if config.Project != "configproject" {
 			t.Errorf("Expected project 'configproject' from config file, got '%s'", config.Project)
 		}
-		
-		if config.Token != "testtoken" {
-			t.Errorf("Expected token 'testtoken', got '%s'", config.Token)
-		}
 	})
 	
 	// Test reading only organization from config file (no project)
 	t.Run("Read only organization from config file", func(t *testing.T) {
-		// Create mock config file
-		home, err := os.UserHomeDir()
-		if err != nil {
-			t.Skip("Unable to determine home directory, skipping test")
-		}
-		
-		configDir := filepath.Join(home, ".azure", "azuredevops")
-		err = os.MkdirAll(configDir, 0755)
-		if err != nil {
-			t.Skip("Unable to create config directory, skipping test")
-		}
-		
-		configPath := filepath.Join(configDir, "config")
-		
-		// Create backup of existing file if it exists
-		existingConfig := ""
-		if _, err := os.Stat(configPath); err == nil {
-			configContent, err := ioutil.ReadFile(configPath)
-			if err == nil {
-				existingConfig = string(configContent)
-			}
-		}
-		
-		// Write test config content with only organization
+		// Create mock config file with only organization
 		configContent := `[defaults]
 organization = configorg
 `
-		err = ioutil.WriteFile(configPath, []byte(configContent), 0644)
-		if err != nil {
-			t.Skip("Unable to write config file, skipping test")
-		}
-		
-		// Clean up after test
-		defer func() {
-			if existingConfig != "" {
-				ioutil.WriteFile(configPath, []byte(existingConfig), 0644)
-			} else {
-				os.Remove(configPath)
-			}
-		}()
+		_, cleanup := setupConfigTest(t, configContent)
+		defer cleanup()
 		
 		// Run the test with token and project from env variable
 		os.Clearenv()
-		os.Setenv("AZURE_DEVOPS_TOKEN", "testtoken")
 		os.Setenv("AZURE_DEVOPS_PROJECT", "envproject")
 		
 		config, err := NewConfig()
@@ -268,60 +342,21 @@ organization = configorg
 		if config.Project != "envproject" {
 			t.Errorf("Expected project 'envproject' from env, got '%s'", config.Project)
 		}
-		
-		if config.Token != "testtoken" {
-			t.Errorf("Expected token 'testtoken', got '%s'", config.Token)
-		}
 	})
 	
 	// Test fallback to environment variable when config file doesn't have organization
 	t.Run("Fallback to env variable", func(t *testing.T) {
-		// Create mock config file
-		home, err := os.UserHomeDir()
-		if err != nil {
-			t.Skip("Unable to determine home directory, skipping test")
-		}
-		
-		configDir := filepath.Join(home, ".azure", "azuredevops")
-		err = os.MkdirAll(configDir, 0755)
-		if err != nil {
-			t.Skip("Unable to create config directory, skipping test")
-		}
-		
-		configPath := filepath.Join(configDir, "config")
-		
-		// Create backup of existing file if it exists
-		existingConfig := ""
-		if _, err := os.Stat(configPath); err == nil {
-			configContent, err := ioutil.ReadFile(configPath)
-			if err == nil {
-				existingConfig = string(configContent)
-			}
-		}
-		
-		// Write test config content without organization
+		// Create mock config file without organization but with project
 		configContent := `[defaults]
 someotherkey = somevalue
 project = configproject
 `
-		err = ioutil.WriteFile(configPath, []byte(configContent), 0644)
-		if err != nil {
-			t.Skip("Unable to write config file, skipping test")
-		}
-		
-		// Clean up after test
-		defer func() {
-			if existingConfig != "" {
-				ioutil.WriteFile(configPath, []byte(existingConfig), 0644)
-			} else {
-				os.Remove(configPath)
-			}
-		}()
+		_, cleanup := setupConfigTest(t, configContent)
+		defer cleanup()
 		
 		// Run the test with both from env variable 
 		os.Clearenv()
 		os.Setenv("AZURE_DEVOPS_ORG", "fallbackorg")
-		os.Setenv("AZURE_DEVOPS_TOKEN", "testtoken")
 		os.Setenv("AZURE_DEVOPS_PROJECT", "fallbackproject")
 		
 		config, err := NewConfig()
@@ -341,59 +376,20 @@ project = configproject
 		if config.Project != "configproject" {
 			t.Errorf("Expected project 'configproject' from config file, got '%s'", config.Project)
 		}
-		
-		if config.Token != "testtoken" {
-			t.Errorf("Expected token 'testtoken', got '%s'", config.Token)
-		}
 	})
 	
 	// Test using both org and project from environment variables when neither is in config
 	t.Run("Both org and project from env variables", func(t *testing.T) {
-		// Create mock config file
-		home, err := os.UserHomeDir()
-		if err != nil {
-			t.Skip("Unable to determine home directory, skipping test")
-		}
-		
-		configDir := filepath.Join(home, ".azure", "azuredevops")
-		err = os.MkdirAll(configDir, 0755)
-		if err != nil {
-			t.Skip("Unable to create config directory, skipping test")
-		}
-		
-		configPath := filepath.Join(configDir, "config")
-		
-		// Create backup of existing file if it exists
-		existingConfig := ""
-		if _, err := os.Stat(configPath); err == nil {
-			configContent, err := ioutil.ReadFile(configPath)
-			if err == nil {
-				existingConfig = string(configContent)
-			}
-		}
-		
-		// Write test config content without organization or project
+		// Create mock config file without organization or project
 		configContent := `[defaults]
 someotherkey = somevalue
 `
-		err = ioutil.WriteFile(configPath, []byte(configContent), 0644)
-		if err != nil {
-			t.Skip("Unable to write config file, skipping test")
-		}
-		
-		// Clean up after test
-		defer func() {
-			if existingConfig != "" {
-				ioutil.WriteFile(configPath, []byte(existingConfig), 0644)
-			} else {
-				os.Remove(configPath)
-			}
-		}()
+		_, cleanup := setupConfigTest(t, configContent)
+		defer cleanup()
 		
 		// Run the test with all values from env variables
 		os.Clearenv()
 		os.Setenv("AZURE_DEVOPS_ORG", "envorg")
-		os.Setenv("AZURE_DEVOPS_TOKEN", "testtoken")
 		os.Setenv("AZURE_DEVOPS_PROJECT", "envproject")
 		
 		config, err := NewConfig()
@@ -412,10 +408,6 @@ someotherkey = somevalue
 		
 		if config.Project != "envproject" {
 			t.Errorf("Expected project 'envproject' from env, got '%s'", config.Project)
-		}
-		
-		if config.Token != "testtoken" {
-			t.Errorf("Expected token 'testtoken', got '%s'", config.Token)
 		}
 	})
 }

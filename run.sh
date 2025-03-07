@@ -13,22 +13,41 @@ if [ -f .env ]; then
     source .env
 fi
 
-# Set your Azure DevOps organization and personal access token
-# These values will be used if not set in .env file
+# Set your Azure DevOps organization
+# This value will be used if not set in .env file or Azure CLI config
 if [ -z "$AZURE_DEVOPS_ORG" ]; then
     export AZURE_DEVOPS_ORG="your-organization-name"
 fi
 
-if [ -z "$AZURE_DEVOPS_TOKEN" ]; then
-    export AZURE_DEVOPS_TOKEN="your-personal-access-token"
+# Check if Azure CLI is installed
+if ! command -v az &> /dev/null; then
+    echo "Azure CLI is not installed. Please install it first:"
+    echo "https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
+    exit 1
+fi
+
+# Check if Azure CLI is logged in
+echo "Checking Azure CLI login status..."
+if ! az account show &> /dev/null; then
+    echo "You are not logged in to Azure CLI. Please run 'az login' first."
+    exit 1
+fi
+
+# Check if Azure DevOps extension is installed
+if ! az devops &> /dev/null; then
+    echo "Azure DevOps CLI extension is not installed. Installing it now..."
+    az extension add --name azure-devops
 fi
 
 # Run the application
 echo "---------------------------------------------" | tee -a "$LOG_FILE"
 echo "Starting LazyAZ application at $(date)" | tee -a "$LOG_FILE"
 echo "Using Azure DevOps Organization: $AZURE_DEVOPS_ORG" | tee -a "$LOG_FILE"
-echo "Token is ${#AZURE_DEVOPS_TOKEN} characters long" | tee -a "$LOG_FILE"
+echo "Using Azure CLI for authentication" | tee -a "$LOG_FILE"
 echo "---------------------------------------------" | tee -a "$LOG_FILE"
+
+# Set default Azure DevOps organization for Azure CLI if not already set
+az devops configure --defaults organization="https://dev.azure.com/$AZURE_DEVOPS_ORG" --use-git-aliases true
 
 # Run application and capture output to log file
 go run main.go 2>&1 | tee -a "$LOG_FILE"

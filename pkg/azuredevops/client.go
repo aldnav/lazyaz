@@ -2,21 +2,22 @@ package azuredevops
 
 import (
 	"bufio"
-	"encoding/base64"
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
+// execCommand is a variable that allows for mocking exec.Command in tests
+var execCommand = exec.Command
+
 // Config holds the Azure DevOps connection settings
 type Config struct {
 	Organization string
-	Token        string
 	Project      string
 }
 
@@ -28,20 +29,37 @@ type Project struct {
 	URL         string    `json:"url"`
 	State       string    `json:"state"`
 	LastUpdated time.Time `json:"lastUpdateTime"`
+	Visibility  string    `json:"visibility"`
 }
 
-// ProjectsResponse represents the API response for projects
-type ProjectsResponse struct {
-	Count   int       `json:"count"`
-	Value   []Project `json:"value"`
-	Message string    `json:"message,omitempty"`
+// AzCliProjectsResponse represents the Azure CLI response for projects
+type AzCliProjectsResponse struct {
+	Value []struct {
+		ID             string    `json:"id"`
+		Name           string    `json:"name"`
+		Description    string    `json:"description"`
+		URL            string    `json:"url"`
+		State          string    `json:"state"`
+		Visibility     string    `json:"visibility"`
+		LastUpdateTime time.Time `json:"lastUpdateTime"`
+	} `json:"value"`
+	Count int `json:"count"`
 }
 
-// Client represents an Azure DevOps API client
+// AzCliProjectResponse represents the Azure CLI response for a single project
+type AzCliProjectResponse struct {
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	URL            string    `json:"url"`
+	State          string    `json:"state"`
+	Visibility     string    `json:"visibility"`
+	LastUpdateTime time.Time `json:"lastUpdateTime"`
+}
+
+// Client represents an Azure DevOps client
 type Client struct {
-	Config     *Config
-	HTTPClient *http.Client
-	baseURL    string // Added for testing
+	Config *Config
 }
 
 // NewConfig creates a new Config, first trying to read from config file, then falling back to environment variables
@@ -59,15 +77,9 @@ func NewConfig() (*Config, error) {
 		project = os.Getenv("AZURE_DEVOPS_PROJECT")
 	}
 	
-	// Always read token from environment variable
-	token := os.Getenv("AZURE_DEVOPS_TOKEN")
-
 	var missingVars []string
 	if org == "" {
 		missingVars = append(missingVars, "AZURE_DEVOPS_ORG")
-	}
-	if token == "" {
-		missingVars = append(missingVars, "AZURE_DEVOPS_TOKEN")
 	}
 
 	if len(missingVars) > 0 {
@@ -76,7 +88,6 @@ func NewConfig() (*Config, error) {
 
 	return &Config{
 		Organization: org,
-		Token:        token,
 		Project:      project,
 	}, nil
 }
@@ -152,57 +163,81 @@ func readConfigFromFile() (string, string) {
 func NewClient(config *Config) *Client {
 	return &Client{
 		Config: config,
-		HTTPClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
-		baseURL: fmt.Sprintf("https://dev.azure.com/%s", config.Organization),
 	}
 }
 
-// FetchProjects retrieves projects from Azure DevOps API
+// runAzCommand executes an Azure CLI command and returns the output
+func runAzCommand(args ...string) ([]byte, error) {
+	cmd := execCommand("az", args...)
+	
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	
+	err := cmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("az command failed: %v\nStderr: %s", err, stderr.String())
+	}
+	
+	return stdout.Bytes(), nil
+}
+
+// FetchProjects retrieves projects using Azure CLI
 func (c *Client) FetchProjects() ([]Project, error) {
-	// Prepare the API URL
-	baseURL := c.baseURL
-	if baseURL == "" {
-		baseURL = fmt.Sprintf("https://dev.azure.com/%s", c.Config.Organization)
-	}
-	url := fmt.Sprintf("%s/_apis/projects?api-version=7.0", baseURL)
-
-	// Create a new request
-	req, err := http.NewRequest("GET", url, nil)
+	// Run the az devops project list command
+	output, err := runAzCommand("devops", "project", "list", "--detect", "--output", "json")
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return nil, fmt.Errorf("error fetching projects: %v", err)
 	}
+	
+	// Parse the CLI output
+	var response AzCliProjectsResponse
+	if err := json.Unmarshal(output, &response); err != nil {
+		return nil, fmt.Errorf("error parsing CLI output: %v", err)
+	}
+	
+	// Convert to our Project struct format
+	projects := make([]Project, len(response.Value))
+	for i, p := range response.Value {
+		projects[i] = Project{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			URL:         p.URL,
+			State:       p.State,
+			LastUpdated: p.LastUpdateTime,
+			Visibility:  p.Visibility,
+		}
+	}
+	
+	return projects, nil
+}
 
-	// Set authorization header using Basic Authentication with PAT
-	// Username is empty, password is the PAT
-	auth := base64.StdEncoding.EncodeToString([]byte(":" + c.Config.Token))
-	req.Header.Add("Authorization", "Basic "+auth)
-
-	// Execute the request
-	resp, err := c.HTTPClient.Do(req)
+// GetProject retrieves a specific project's details using Azure CLI
+func (c *Client) GetProject(projectName string) (*Project, error) {
+	// Run the az devops project show command
+	output, err := runAzCommand("devops", "project", "show", "--project", projectName, "--detect", "--output", "json")
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to Azure DevOps API: %v", err)
+		return nil, fmt.Errorf("error fetching project '%s': %v", projectName, err)
 	}
-	defer resp.Body.Close()
-
-	// Read response body
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
+	
+	// Parse the CLI output
+	var response AzCliProjectResponse
+	if err := json.Unmarshal(output, &response); err != nil {
+		return nil, fmt.Errorf("error parsing CLI output: %v", err)
 	}
-
-	// Check for HTTP error
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %s: %s", resp.Status, string(body))
+	
+	// Convert to our Project struct
+	project := &Project{
+		ID:          response.ID,
+		Name:        response.Name,
+		Description: response.Description,
+		URL:         response.URL,
+		State:       response.State,
+		LastUpdated: response.LastUpdateTime,
+		Visibility:  response.Visibility,
 	}
-
-	// Parse response JSON
-	var projectsResp ProjectsResponse
-	if err := json.Unmarshal(body, &projectsResp); err != nil {
-		return nil, fmt.Errorf("error parsing JSON response: %v", err)
-	}
-
-	return projectsResp.Value, nil
+	
+	return project, nil
 }
 
