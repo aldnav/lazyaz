@@ -15,7 +15,7 @@ func main() {
 	log.SetOutput(os.Stderr)
 	log.SetPrefix("[lazyaz] ")
 	log.Println("Application starting...")
-	
+
 	// Initialize a new application
 	app := tview.NewApplication()
 
@@ -48,11 +48,11 @@ func main() {
 			loadingMessage += fmt.Sprintf("\n[yellow]Default Project: %s[white]", config.Project)
 		}
 		headerView.SetText(loadingMessage)
-		
+
 		// Create an Azure DevOps client
 		log.Println("Creating Azure DevOps client...")
 		client := azuredevops.NewClient(config)
-		
+
 		// Fetch projects in a goroutine to keep UI responsive
 		go func() {
 			log.Println("Fetching projects from Azure DevOps API...")
@@ -65,9 +65,9 @@ func main() {
 				})
 				return
 			}
-			
+
 			log.Printf("Successfully fetched %d projects from Azure DevOps", len(projects))
-			
+
 			// Update UI with projects
 			app.QueueUpdateDraw(func() {
 				headerText := fmt.Sprintf("[green]Connected to Azure DevOps![white]\n\nFound [yellow]%d[white] projects in organization: [yellow]%s[white]", len(projects), config.Organization)
@@ -75,52 +75,61 @@ func main() {
 					headerText += fmt.Sprintf("\nDefault project: [yellow]%s[white]", config.Project)
 				}
 				headerView.SetText(headerText)
-				
-			// Add projects to the list
-			defaultProjectIndex := -1
-			for i, project := range projects {
-				desc := project.Description
-				if desc == "" {
-					desc = "No description"
+
+				// Add projects to the list
+				defaultProjectIndex := -1
+				for i, project := range projects {
+					desc := project.Description
+					if desc == "" {
+						desc = "No description"
+					}
+
+					displayName := project.Name
+					// Add visual indicator for default project
+					if config.Project != "" && project.Name == config.Project {
+						displayName = fmt.Sprintf("[green]%s [DEFAULT][white]", project.Name)
+						defaultProjectIndex = i
+					}
+
+					projectsList.AddItem(
+						displayName,
+						fmt.Sprintf("ID: %s | State: %s", project.ID, project.State),
+						rune('a'+i%26), // Use letters as shortcuts
+						nil,
+					)
 				}
-				
-				displayName := project.Name
-				// Add visual indicator for default project
-				if config.Project != "" && project.Name == config.Project {
-					displayName = fmt.Sprintf("[green]%s [DEFAULT][white]", project.Name)
-					defaultProjectIndex = i
+
+				// Select the default project in the list if found
+				if defaultProjectIndex >= 0 {
+					projectsList.SetCurrentItem(defaultProjectIndex)
 				}
-				
-				projectsList.AddItem(
-					displayName, 
-					fmt.Sprintf("ID: %s | State: %s", project.ID, project.State),
-					rune('a'+i%26), // Use letters as shortcuts
-					nil,
-				)
-			}
-			
-			// Select the default project in the list if found
-			if defaultProjectIndex >= 0 {
-				projectsList.SetCurrentItem(defaultProjectIndex)
-			}
-		})
+			})
 		}()
 	}
 
 	// Set up the layout
 	headerView.SetBorder(true).SetTitle("LazyAz").SetTitleAlign(tview.AlignCenter)
 	projectsList.SetBorder(true).SetTitle("Projects").SetTitleAlign(tview.AlignCenter)
-	
+
 	// Add components to the layout
 	flex.AddItem(headerView, 5, 1, false)
 	flex.AddItem(projectsList, 0, 3, true)
 
 	// Set the flex container as the root primitive and run the application
 	log.Println("Starting LazyAz terminal UI...")
+
+	// Add global keyboard handler for quitting with 'q'
+	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Rune() == 'q' {
+			app.Stop()
+			return nil
+		}
+		return event
+	})
+
 	if err := app.SetRoot(flex, true).Run(); err != nil {
 		log.Printf("Terminal UI error: %v", err)
 		panic(err)
 	}
 	log.Println("Application exiting...")
 }
-
