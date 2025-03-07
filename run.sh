@@ -34,9 +34,14 @@ if ! az account show &> /dev/null; then
 fi
 
 # Check if Azure DevOps extension is installed
-if ! az devops &> /dev/null; then
+if ! az extension list --query "[].{name:name} | [].name" | grep "azure-devops" &> /dev/null; then
     echo "Azure DevOps CLI extension is not installed. Installing it now..."
     az extension add --name azure-devops
+fi
+
+# Try to capture the organization from the Azure CLI again
+if [ "$AZURE_DEVOPS_ORG" == "your-organization-name" ]; then
+    AZURE_DEVOPS_ORG=$(az devops configure --list | grep "organization" | awk '{print $3}')
 fi
 
 # Run the application
@@ -45,9 +50,6 @@ echo "Starting LazyAZ application at $(date)" | tee -a "$LOG_FILE"
 echo "Using Azure DevOps Organization: $AZURE_DEVOPS_ORG" | tee -a "$LOG_FILE"
 echo "Using Azure CLI for authentication" | tee -a "$LOG_FILE"
 echo "---------------------------------------------" | tee -a "$LOG_FILE"
-
-# Set default Azure DevOps organization for Azure CLI if not already set
-az devops configure --defaults organization="https://dev.azure.com/$AZURE_DEVOPS_ORG" --use-git-aliases true
 
 # Run application and capture output to log file
 go run main.go 2>&1 | tee -a "$LOG_FILE"
