@@ -41,9 +41,13 @@ func main() {
 		log.Printf("Configuration error: %v", err)
 		headerView.SetText(fmt.Sprintf("[red]Error: %s[white]\n\nPlease set the required environment variables and restart the application.", err))
 	} else {
-		log.Printf("Configuration loaded successfully. Organization: %s", config.Organization)
+		log.Printf("Configuration loaded successfully. Organization: %s, Project: %s", config.Organization, config.Project)
 		// Display loading message
-		headerView.SetText(fmt.Sprintf("[yellow]Connecting to Azure DevOps...\n\nOrganization: %s[white]", config.Organization))
+		loadingMessage := fmt.Sprintf("[yellow]Connecting to Azure DevOps...\n\nOrganization: %s[white]", config.Organization)
+		if config.Project != "" {
+			loadingMessage += fmt.Sprintf("\n[yellow]Default Project: %s[white]", config.Project)
+		}
+		headerView.SetText(loadingMessage)
 		
 		// Create an Azure DevOps client
 		log.Println("Creating Azure DevOps client...")
@@ -66,22 +70,40 @@ func main() {
 			
 			// Update UI with projects
 			app.QueueUpdateDraw(func() {
-				headerView.SetText(fmt.Sprintf("[green]Connected to Azure DevOps![white]\n\nFound [yellow]%d[white] projects in organization: [yellow]%s[white]", len(projects), config.Organization))
+				headerText := fmt.Sprintf("[green]Connected to Azure DevOps![white]\n\nFound [yellow]%d[white] projects in organization: [yellow]%s[white]", len(projects), config.Organization)
+				if config.Project != "" {
+					headerText += fmt.Sprintf("\nDefault project: [yellow]%s[white]", config.Project)
+				}
+				headerView.SetText(headerText)
 				
 			// Add projects to the list
+			defaultProjectIndex := -1
 			for i, project := range projects {
-					desc := project.Description
-					if desc == "" {
-						desc = "No description"
-					}
-					projectsList.AddItem(
-						project.Name, 
-						fmt.Sprintf("ID: %s | State: %s", project.ID, project.State),
-						rune('a'+i%26), // Use letters as shortcuts
-						nil,
-					)
+				desc := project.Description
+				if desc == "" {
+					desc = "No description"
 				}
-			})
+				
+				displayName := project.Name
+				// Add visual indicator for default project
+				if config.Project != "" && project.Name == config.Project {
+					displayName = fmt.Sprintf("[green]%s [DEFAULT][white]", project.Name)
+					defaultProjectIndex = i
+				}
+				
+				projectsList.AddItem(
+					displayName, 
+					fmt.Sprintf("ID: %s | State: %s", project.ID, project.State),
+					rune('a'+i%26), // Use letters as shortcuts
+					nil,
+				)
+			}
+			
+			// Select the default project in the list if found
+			if defaultProjectIndex >= 0 {
+				projectsList.SetCurrentItem(defaultProjectIndex)
+			}
+		})
 		}()
 	}
 

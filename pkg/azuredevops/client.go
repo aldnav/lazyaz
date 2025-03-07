@@ -17,6 +17,7 @@ import (
 type Config struct {
 	Organization string
 	Token        string
+	Project      string
 }
 
 // Project represents an Azure DevOps project
@@ -45,12 +46,17 @@ type Client struct {
 
 // NewConfig creates a new Config, first trying to read from config file, then falling back to environment variables
 func NewConfig() (*Config, error) {
-	// Try to read organization from config file first
-	org := readOrgFromConfigFile()
+	// Try to read organization and project from config file first
+	org, project := readConfigFromFile()
 	
 	// If organization not found in config file, fall back to environment variable
 	if org == "" {
 		org = os.Getenv("AZURE_DEVOPS_ORG")
+	}
+	
+	// If project not found in config file, fall back to environment variable
+	if project == "" {
+		project = os.Getenv("AZURE_DEVOPS_PROJECT")
 	}
 	
 	// Always read token from environment variable
@@ -71,16 +77,17 @@ func NewConfig() (*Config, error) {
 	return &Config{
 		Organization: org,
 		Token:        token,
+		Project:      project,
 	}, nil
 }
 
-// readOrgFromConfigFile attempts to read the organization from ~/.azure/azuredevops/config
-// Returns empty string if file doesn't exist, can't be read, or doesn't contain the organization
-func readOrgFromConfigFile() string {
+// readConfigFromFile attempts to read the organization and project from ~/.azure/azuredevops/config
+// Returns empty strings if file doesn't exist, can't be read, or doesn't contain the values
+func readConfigFromFile() (string, string) {
 	// Get user home directory
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ""
+		return "", ""
 	}
 
 	// Build path to config file
@@ -88,19 +95,21 @@ func readOrgFromConfigFile() string {
 
 	// Check if file exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return ""
+		return "", ""
 	}
 
 	// Open and read the config file
 	file, err := os.Open(configPath)
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	defer file.Close()
 
 	// Parse the INI-style config file
 	scanner := bufio.NewScanner(file)
 	inDefaultsSection := false
+	
+	var organization, project string
 	
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -124,17 +133,19 @@ func readOrgFromConfigFile() string {
 			value := strings.TrimSpace(parts[1])
 			
 			if strings.ToLower(key) == "organization" {
-				return value
+				organization = value
+			} else if strings.ToLower(key) == "project" {
+				project = value
 			}
 		}
 	}
 
 	// Handle scanner errors
 	if err := scanner.Err(); err != nil {
-		return ""
+		return "", ""
 	}
 
-	return ""
+	return organization, project
 }
 
 // NewClient creates a new Azure DevOps client
