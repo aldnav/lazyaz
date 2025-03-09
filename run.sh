@@ -52,7 +52,7 @@ echo "Using Azure CLI for authentication" | tee -a "$LOG_FILE"
 echo "---------------------------------------------" | tee -a "$LOG_FILE"
 
 # Run application and capture output to log file
-go run main.go 2>&1 | tee -a "$LOG_FILE"
+go run ./app 2>&1 | tee -a "$LOG_FILE"
 
 # Alternatively, if you've built the application using 'go build' or 'make build'
 # uncomment the line below and comment out the 'go run' line above

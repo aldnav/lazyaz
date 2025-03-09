@@ -8,7 +8,7 @@ default:
 
 # Build the application
 build:
-    go build -o bin/{{binary_name}} -v .
+    go build -o bin/{{binary_name}} -v ./app
 
 # Run all tests
 test:
@@ -49,7 +49,7 @@ run-direct:
     if [ -f "bin/{{binary_name}}" ]; then
         ./bin/{{binary_name}} 2>&1 | tee -a "$LOG_FILE"
     else
-        go run main.go 2>&1 | tee -a "$LOG_FILE"
+        go run ./app 2>&1 | tee -a "$LOG_FILE"
     fi
     
     echo "---------------------------------------------" | tee -a "$LOG_FILE"

@@ -45,3 +45,5 @@ temp/
 debug
 debug.test
 
+main_back.go
+sampledata
