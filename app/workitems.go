@@ -76,7 +76,9 @@ func normalizeDataString(data string) string {
 	data = strings.ReplaceAll(data, "&apos;", "'")
 	data = strings.ReplaceAll(data, "&amp;", "&")
 	data = strings.ReplaceAll(data, "\n\n", "\n")
-	return p.Sanitize(strip.StripTags(data))
+	data = strings.ReplaceAll(data, "\u00A0", " ")
+	data = strings.ReplaceAll(data, "&nbsp;", " ")
+	return strip.StripTags(data)
 }
 
 func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
@@ -406,6 +408,24 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		detailsPanel.SetText("")
 	}
 
+	toggleDetailsPanel := func() {
+		if detailsVisible {
+			closeDetailPanel()
+		} else {
+			// Set active panel for keyboard context
+			activePanel = "details"
+			// Show details
+			mainFlex.AddItem(detailsPanel, 0, 1, false)
+			detailsVisible = true
+			displayCurrentWorkItemDetails()
+		}
+	}
+
+	// Handle table enter key
+	table.SetSelectedFunc(func(row, column int) {
+		toggleDetailsPanel()
+	})
+
 	mainWindow.AddItem(mainFlex, 0, 1, true)
 	// Add input capture for toggling details panel
 	mainWindow.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -424,20 +444,8 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			}
 		}
 
-		// Handle tab key to toggle details panel
-		if event.Key() == tcell.KeyTab && len(workItems) > 0 {
-			if detailsVisible {
-				closeDetailPanel()
-			} else {
-				// Set active panel for keyboard context
-				activePanel = "details"
-				// Show details
-				mainFlex.AddItem(detailsPanel, 0, 1, false)
-				detailsVisible = true
-				displayCurrentWorkItemDetails()
-			}
-			return nil
-		} else if activePanel == "details" && (event.Rune() == 'q') {
+		// Handle 'q' key to close details panel
+		if activePanel == "details" && (event.Rune() == 'q') {
 			closeDetailPanel()
 			return nil
 		}
