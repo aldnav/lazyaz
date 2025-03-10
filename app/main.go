@@ -81,7 +81,8 @@ func main() {
 		} else if event.Rune() == '[' {
 			prevSlide()
 			return nil
-		} else if r := event.Rune(); r >= '1' && r <= '9' {
+		} else if r := event.Rune(); r >= '1' && r <= '9' && true == false {
+			// TODO Temp disable selection by number because of search with numbers
 			// Convert rune to integer (0-based index)
 			slideIndex := int(r - '1')
 			goToSlide(slideIndex)

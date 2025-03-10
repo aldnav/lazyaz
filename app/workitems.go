@@ -173,6 +173,15 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	var currentIndex int
 	var loadingWorkItemID int = -1
 	var client *azuredevops.Client
+	var searchText string
+	var previousSearchText string
+
+	// Add search-related variables
+	var searchMode bool = false
+	var searchInput *tview.InputField
+	var searchMatches []struct{ row, col int }
+	var currentMatchIndex int = -1
+
 	table := tview.NewTable().
 		SetFixed(1, 1).
 		SetBorders(false).
@@ -219,6 +228,9 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		SetTitle(" Work Item ")
 
 	// Create a flex container
+	mainWindow := tview.NewFlex().
+		SetDirection(tview.FlexRow)
+
 	mainFlex := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
 		AddItem(table, 0, 1, true)
@@ -226,6 +238,119 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 
 	// Variable to track if details are visible
 	detailsVisible := false
+
+	// Function to clear highlights - declare before use
+	clearHighlights := func() {
+		// Reset all cell styles to default
+		rowCount := table.GetRowCount()
+		colCount := table.GetColumnCount()
+
+		for row := 0; row < rowCount; row++ {
+			for col := 0; col < colCount; col++ {
+				cell := table.GetCell(row, col)
+				if cell != nil {
+					// Restore original colors based on your table's styling logic
+					color := tcell.ColorWhite
+					if col == 0 && row > 0 {
+						color = tcell.ColorPink
+					}
+					cell.SetTextColor(color)
+				}
+			}
+		}
+	}
+
+	// Function to highlight the current match - declare before use
+	highlightMatch := func() {
+		if currentMatchIndex >= 0 && currentMatchIndex < len(searchMatches) {
+			// Clear previous highlights
+			clearHighlights()
+
+			match := searchMatches[currentMatchIndex]
+
+			// Select the cell with the match
+			table.Select(match.row, match.col)
+
+			// Update the search input to show current match position - directly update instead of using QueueUpdateDraw
+			searchInput.SetLabel(fmt.Sprintf("Match %d/%d /",
+				currentMatchIndex+1, len(searchMatches)))
+		}
+	}
+
+	// Create a search input field
+	closeSearch := func() {
+		searchMode = false
+		mainWindow.RemoveItem(searchInput)
+		app.SetFocus(table)
+	}
+
+	searchInput = tview.NewInputField().
+		SetLabel("/").
+		SetFieldWidth(30).
+		SetFieldTextColor(tcell.ColorGreen).
+		SetFieldBackgroundColor(tcell.ColorBlack).
+		SetDoneFunc(func(key tcell.Key) {
+			if key == tcell.KeyEnter {
+				// Perform search when Enter is pressed
+				searchText = strings.TrimSpace(searchInput.GetText())
+				if searchText == "" {
+					// Exit search mode if search text is empty
+					closeSearch()
+					return
+				}
+
+				if searchText != previousSearchText {
+					// Clear previous matches
+					searchMatches = nil
+					currentMatchIndex = -1
+					previousSearchText = searchText
+
+					// Search for matches in the table
+					rowCount := table.GetRowCount()
+					colCount := table.GetColumnCount()
+					searchTextLower := strings.ToLower(searchText)
+
+					for row := 1; row < rowCount; row++ {
+						for col := 0; col < colCount; col++ {
+							cell := table.GetCell(row, col)
+							if cell != nil {
+								cellText := cell.Text
+								if strings.Contains(strings.ToLower(cellText), searchTextLower) {
+									searchMatches = append(searchMatches, struct{ row, col int }{row, col})
+								}
+							}
+						}
+					}
+
+					if len(searchMatches) > 0 {
+						// Highlight the first match
+						currentMatchIndex = 0
+					}
+				} else {
+					// Highlight next match (if any)
+					currentMatchIndex += 1
+				}
+
+				if currentMatchIndex >= len(searchMatches) {
+					currentMatchIndex = 0 // Wrap around
+				}
+
+				// Handle search results
+				if len(searchMatches) > 0 {
+					highlightMatch()
+				} else {
+					// Show "No matches" message - directly update the label instead of using QueueUpdateDraw
+					searchInput.SetLabel("No matches. /")
+				}
+				closeSearch()
+			} else if key == tcell.KeyEscape {
+				// Exit search mode on Escape
+				closeSearch()
+
+				// Clear any highlights
+				clearHighlights()
+			}
+		})
 
 	// displayDetails := func() {
 	// 	fmt.Fprint(detailsPanel, detailsData)
@@ -281,8 +406,24 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		detailsPanel.SetText("")
 	}
 
+	mainWindow.AddItem(mainFlex, 0, 1, true)
 	// Add input capture for toggling details panel
-	mainFlex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	mainWindow.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Handle search mode activation with "/"
+		if event.Rune() == '/' {
+			if !searchMode {
+				searchMode = true
+				searchInput.SetText(searchText)
+				searchInput.SetLabel("/")
+				mainWindow.AddItem(searchInput, 1, 0, false)
+				app.SetFocus(searchInput)
+				return nil
+			} else {
+				closeSearch()
+				return nil
+			}
+		}
+
 		// Handle tab key to toggle details panel
 		if event.Key() == tcell.KeyTab && len(workItems) > 0 {
 			if detailsVisible {
@@ -329,5 +470,5 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 	}()
 
-	return "Work Items", mainFlex
+	return "Work Items", mainWindow
 }
