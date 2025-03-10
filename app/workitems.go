@@ -19,6 +19,8 @@ const tableData = `ID|Work Item Type|Created On|Assigned To|State|Title
 0|Fetching work items...|-|-|-|-`
 
 var p = bluemonday.UGCPolicy()
+var _project string
+var _organization string
 
 func workItemsToTableData(workItems []azuredevops.WorkItem) string {
 	tableData := "ID|Work Item Type|Created On|Assigned To|State|Title\n"
@@ -37,11 +39,12 @@ func redrawTable(table *tview.Table, workItems []azuredevops.WorkItem) {
 	tableData := workItemsToTableData(workItems)
 	for row, line := range strings.Split(tableData, "\n") {
 		for column, cell := range strings.Split(line, "|") {
-			color := tcell.ColorGray
+			color := tcell.ColorWhite
+			// color := tcell.ColorGray
 			// Row 0 is the header
-			if row > 0 {
-				color = tcell.ColorWhite
-			}
+			// if row > 0 {
+			// 	color = tcell.ColorWhite
+			// }
 			if column == 0 && row > 0 {
 				color = tcell.ColorPink
 			}
@@ -59,6 +62,23 @@ func redrawTable(table *tview.Table, workItems []azuredevops.WorkItem) {
 	}
 }
 
+// Replaces common html tags, then strip other tags, and sanitize
+func normalizeDataString(data string) string {
+	data = strings.ReplaceAll(data, "<br>", "\n")
+	data = strings.ReplaceAll(data, "<br />", "\n")
+	data = strings.ReplaceAll(data, "<br/>", "\n")
+	data = strings.ReplaceAll(data, "<br>", "\n")
+	data = strings.ReplaceAll(data, "<br />", "\n")
+	data = strings.ReplaceAll(data, "<br/>", "\n")
+	data = strings.ReplaceAll(data, "&#39;", "'")
+	data = strings.ReplaceAll(data, "&#34;", "\"")
+	data = strings.ReplaceAll(data, "&quot;", "\"")
+	data = strings.ReplaceAll(data, "&apos;", "'")
+	data = strings.ReplaceAll(data, "&amp;", "&")
+	data = strings.ReplaceAll(data, "\n\n", "\n")
+	return p.Sanitize(strip.StripTags(data))
+}
+
 func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.TabIndent)
@@ -66,6 +86,7 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 	// Build header section
 	fmt.Fprintf(w, "Title\t%s\n", workItem.Title)
 	fmt.Fprintf(w, "ID\t%d\n", workItem.ID)
+	fmt.Fprintf(w, "URL\t%s\n", workItem.GetURL(_organization, _project))
 	fmt.Fprintf(w, "Work Item Type\t%s\n", workItem.WorkItemType)
 	fmt.Fprintf(w, "Assigned To\t%s\n", workItem.AssignedTo)
 	fmt.Fprintf(w, "State\t%s\n", workItem.State)
@@ -80,12 +101,12 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 
 	if workItem.WorkItemType == "Bug" {
 		if workItem.Details != nil {
-			fmt.Fprintf(w, "Description\t\n%s\n\n", p.Sanitize(strip.StripTags(workItem.Details.ReproSteps)))
+			fmt.Fprintf(w, "Description\t\n%s\n\n", normalizeDataString(workItem.Details.ReproSteps))
 		} else {
 			fmt.Fprintf(w, "Description\tLoading...\n")
 		}
 	} else {
-		fmt.Fprintf(w, "Description\t\n%s\n\n", p.Sanitize(strip.StripTags(workItem.Description)))
+		fmt.Fprintf(w, "Description\t\n%s\n\n", normalizeDataString(workItem.Description))
 	}
 
 	// Add tags section
@@ -101,9 +122,43 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 	fmt.Fprintf(w, "Changed On\t%s\n", workItem.ChangedDate)
 	fmt.Fprintf(w, "Changed By\t%s\n", workItem.ChangedBy)
 
-	// TODO DO not commit
-	if workItem.ID == 279547 {
-		log.Printf("Work item %d: %+v", workItem.ID, workItem)
+	if workItem.Details != nil {
+		fmt.Fprintf(w, "\nAdditional details\n")
+		fmt.Fprintf(w, "Acceptance Criteria\t\n%s\n\n", normalizeDataString(workItem.Details.AcceptanceCriteria))
+		fmt.Fprintf(w, "Board Column\t%s\n", workItem.Details.BoardColumn)
+		fmt.Fprintf(w, "Comment Count\t%d\n", workItem.Details.CommentCount)
+		latestComment := normalizeDataString(workItem.Details.LatestComment)
+		if latestComment == "" {
+			latestComment = "[red][Cannot fetch latest comment][white]"
+		}
+		fmt.Fprintf(w, "Latest Comment\t\n%s\n\n", latestComment)
+		// fmt.Fprintf(w, "PR Refs\t%s\n", strings.Join(workItem.GetPRs(), ", "))
+		if len(workItem.PRDetails) > 0 {
+			fmt.Fprintf(w, "Associated Pull Requests\n\n")
+			for _, pr := range workItem.PRDetails {
+				fmt.Fprintf(w, "\t- %d %s\n", pr.ID, pr.Title)
+				if pr.IsDraft {
+					fmt.Fprintf(w, "\t  Is Draft\t[yellow][Yes][white]\n")
+				}
+				statusColor := "[white]"
+				if pr.Status == "completed" {
+					statusColor = "[green]"
+				} else if pr.Status == "abandoned" {
+					statusColor = "[red]"
+				} else if pr.Status == "active" {
+					statusColor = "[yellow]"
+				}
+				fmt.Fprintf(w, "\t  Status\t%s%s[white]\n", statusColor, pr.Status)
+				fmt.Fprintf(w, "\t  Author\t%s\n", pr.Author)
+				fmt.Fprintf(w, "\t  URL\t%s\n", pr.RepositoryURL)
+				fmt.Fprintf(w, "\t  Created Date\t%s\n", pr.CreatedDate)
+				fmt.Fprintf(w, "\t  Closed By\t%s\n", pr.ClosedBy)
+				fmt.Fprintf(w, "\t  Closed Date\t%s\n", pr.ClosedDate)
+				fmt.Fprintf(w, "\t  From branch\t%s\n", pr.SourceRefName)
+				fmt.Fprintf(w, "\t  To branch\t%s\n", pr.TargetRefName)
+				fmt.Fprintf(w, "\t  Reviewers\t%s\n", strings.Join(pr.Reviewers, ", "))
+			}
+		}
 	}
 
 	w.Flush()
@@ -117,7 +172,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	var workItems []azuredevops.WorkItem
 	var currentIndex int
 	var loadingWorkItemID int = -1
-
+	var client *azuredevops.Client
 	table := tview.NewTable().
 		SetFixed(1, 1).
 		SetBorders(false).
@@ -132,11 +187,12 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	// Set initial table data
 	for row, line := range strings.Split(tableData, "\n") {
 		for column, cell := range strings.Split(line, "|") {
-			color := tcell.ColorGray
-			// Row 0 is the header
-			if row > 0 {
-				color = tcell.ColorWhite
-			}
+			color := tcell.ColorWhite
+			// color := tcell.ColorGray
+			// // Row 0 is the header
+			// if row > 0 {
+			// 	color = tcell.ColorWhite
+			// }
 			if column == 0 && row > 0 {
 				color = tcell.ColorPink
 			}
@@ -189,7 +245,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 					// Capture the ID for comparison later
 					requestedID := currentWorkItem.ID
 					workItems[index].GetMoreWorkItemDetails()
-
+					workItems[index].GetPRDetails(client)
 					// Update UI on the main thread when done
 					app.QueueUpdateDraw(func() {
 						// Refresh with complete details
@@ -216,21 +272,32 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 	})
 
+	closeDetailPanel := func() {
+		// Release active panel for keyboard context
+		activePanel = ""
+		// Hide details
+		mainFlex.RemoveItem(detailsPanel)
+		detailsVisible = false
+		detailsPanel.SetText("")
+	}
+
 	// Add input capture for toggling details panel
 	mainFlex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Handle tab key to toggle details panel
 		if event.Key() == tcell.KeyTab && len(workItems) > 0 {
 			if detailsVisible {
-				// Hide details
-				mainFlex.RemoveItem(detailsPanel)
-				detailsVisible = false
-				detailsPanel.SetText("")
+				closeDetailPanel()
 			} else {
+				// Set active panel for keyboard context
+				activePanel = "details"
 				// Show details
 				mainFlex.AddItem(detailsPanel, 0, 1, false)
 				detailsVisible = true
 				displayCurrentWorkItemDetails()
 			}
+			return nil
+		} else if activePanel == "details" && (event.Rune() == 'q') {
+			closeDetailPanel()
 			return nil
 		}
 		return event
@@ -242,7 +309,9 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		if err != nil {
 			log.Printf("Configuration error: %v", err)
 		}
-		client := azuredevops.NewClient(config)
+		_organization = config.Organization
+		_project = config.Project
+		client = azuredevops.NewClient(config)
 		workItems, err = client.GetWorkItemsAssignedToUser()
 		if err != nil {
 			log.Printf("Error fetching work items: %v", err)

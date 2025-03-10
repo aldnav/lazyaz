@@ -13,6 +13,7 @@ import (
 type Slide func(nextSlide func()) (title string, content tview.Primitive)
 
 var app = tview.NewApplication()
+var activePanel string
 
 func main() {
 	log.SetOutput(os.Stderr)
@@ -72,7 +73,7 @@ func main() {
 
 	// Shortcuts to navigate between slides
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEscape || event.Rune() == 'q' {
+		if event.Key() == tcell.KeyEscape || (event.Rune() == 'q' && activePanel == "") {
 			app.Stop()
 		} else if event.Rune() == ']' {
 			nextSlide()
