@@ -25,7 +25,7 @@ var _organization string
 func workItemsToTableData(workItems []azuredevops.WorkItem) string {
 	tableData := "ID|Work Item Type|Created On|Assigned To|State|Title\n"
 	for i, workItem := range workItems {
-		tableData += fmt.Sprintf("%d|%s|%s|%s|%s|%s", workItem.ID, workItem.WorkItemType, workItem.CreatedDate, workItem.AssignedTo, workItem.State, workItem.Title)
+		tableData += fmt.Sprintf("%d|%s|%s|%s|%s|%s", workItem.ID, workItem.WorkItemType, workItem.CreatedDate, workItem.AssignedTo, workItem.State, strings.ReplaceAll(workItem.Title, "|", ""))
 		// Add newline only if it's not the last item
 		if i < len(workItems)-1 {
 			tableData += "\n"
@@ -177,6 +177,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	var client *azuredevops.Client
 	var searchText string
 	var previousSearchText string
+	workItemFilter := "me"
 
 	// Add search-related variables
 	var searchMode bool = false
@@ -237,6 +238,26 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		SetDirection(tview.FlexColumn).
 		AddItem(table, 0, 1, true)
 		// Details panel not added initially
+	// Actions specific for work items
+	actionsPanel := tview.NewFlex().
+		SetDirection(tview.FlexRow)
+	dropdown := tview.NewDropDown().
+		// SetLabel("Select an option (hit Enter): ").
+		SetFieldBackgroundColor(tcell.ColorBlack).
+		SetFieldTextColor(tcell.ColorWhite).
+		SetListStyles(
+			tcell.StyleDefault.
+				Background(tcell.ColorBlack).
+				Foreground(tcell.ColorWhite),
+			tcell.StyleDefault.
+				Background(tcell.ColorYellow).
+				Foreground(tcell.ColorBlack),
+		).
+		// TODO "@Follows" and "@Mentions" are only working for web portal
+		// https://learn.microsoft.com/en-us/azure/devops/boards/queries/query-operators-variables?view=azure-devops#query-macros-or-variables
+		SetOptions([]string{"Assigned to me", "Was ever assigned to me"}, nil)
+	dropdown.SetCurrentOption(0)
+	actionsPanel.AddItem(dropdown, 0, 1, false)
 
 	// Variable to track if details are visible
 	detailsVisible := false
@@ -426,7 +447,44 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		toggleDetailsPanel()
 	})
 
+	// Handle work item filter dropdown selection
+	dropdown.SetSelectedFunc(func(text string, index int) {
+		app.SetFocus(table)
+		switch text {
+		case "Assigned to me":
+			workItemFilter = "me"
+		case "Was ever assigned to me":
+			workItemFilter = "was-ever-me"
+		}
+
+		// Refresh the work items
+		go func() {
+			var err error
+			workItems, err = client.GetWorkItemsForFilter(workItemFilter)
+			if err != nil {
+				log.Printf("Error fetching work items: %v", err)
+			}
+			if len(workItems) > 0 {
+				app.QueueUpdateDraw(func() {
+					redrawTable(table, workItems)
+					// Reset the index
+					currentIndex = 0
+					table.Select(0, 0)
+					// Close the details panel
+					closeDetailPanel()
+				})
+			} else {
+				app.QueueUpdateDraw(func() {
+					table.SetCell(0, 0, tview.NewTableCell("No work items found").
+						SetTextColor(tcell.ColorRed).
+						SetAlign(tview.AlignCenter))
+				})
+			}
+		}()
+	})
+
 	mainWindow.AddItem(mainFlex, 0, 1, true)
+	mainWindow.AddItem(actionsPanel, 1, 1, false)
 	// Add input capture for toggling details panel
 	mainWindow.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Handle search mode activation with "/"
@@ -449,6 +507,12 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			closeDetailPanel()
 			return nil
 		}
+
+		// Handle '\' key to activate dropdown
+		if event.Rune() == '\\' {
+			app.SetFocus(dropdown)
+			return nil
+		}
 		return event
 	})
 
@@ -461,7 +525,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		_organization = config.Organization
 		_project = config.Project
 		client = azuredevops.NewClient(config)
-		workItems, err = client.GetWorkItemsAssignedToUser()
+		workItems, err = client.GetWorkItemsForFilter(workItemFilter)
 		if err != nil {
 			log.Printf("Error fetching work items: %v", err)
 		}

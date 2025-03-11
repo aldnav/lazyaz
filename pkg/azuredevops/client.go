@@ -293,6 +293,33 @@ func (c *Client) GetProject(projectName string) (*Project, error) {
 	return project, nil
 }
 
+// GetWorkItemsForFilter retrieves work items for a given filter
+func (c *Client) GetWorkItemsForFilter(filter string) ([]WorkItem, error) {
+	// Get the work items for the filter
+	var wiql string
+	switch filter {
+	case "me":
+		wiql = workItemQueryMeSincePastMonth
+	case "was-ever-me":
+		wiql = workItemQueryWasEverMeSincePastMonth
+	default:
+		wiql = workItemQueryMeSincePastMonth
+	}
+
+	output, err := runAzCommand("boards", "query", "--wiql", wiql, "--query", jmespathWorkItemQuery, "--output", "json")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching work items: %v", err)
+	}
+
+	// Parse the output
+	var workItems []WorkItem
+	if err := json.Unmarshal(output, &workItems); err != nil {
+		return nil, fmt.Errorf("error parsing work items: %v", err)
+	}
+
+	return workItems, nil
+}
+
 // GetWorkItemsAssignedToUser retrieves work items assigned to the current user
 func (c *Client) GetWorkItemsAssignedToUser() ([]WorkItem, error) {
 	output, err := runAzCommand("boards", "query", "--wiql", workItemQueryMeSincePastMonth, "--query", jmespathWorkItemQuery, "--output", "json")

@@ -38,3 +38,7 @@ const jmespathPRDetailsQuery = `{` +
 	`"Closed By": closedBy.displayName, ` +
 	`"Closed Date": closedDate ` +
 	`}`
+
+	// References:
+	// - https://learn.microsoft.com/en-us/azure/devops/boards/queries/query-operators-variables?view=azure-devops
+	// - https://learn.microsoft.com/en-us/azure/devops/boards/queries/wiql-syntax?view=azure-devops
