@@ -405,7 +405,10 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	// When the table highlight is changed
 	table.SetSelectionChangedFunc(func(row, column int) {
 		currentIndex = row - 1
-		if detailsVisible && currentIndex >= 0 {
+		if currentIndex < 0 {
+			currentIndex = 0
+		}
+		if detailsVisible {
 			loadingWorkItemID = workItems[currentIndex].ID
 			detailsPanel.SetText("")
 			displayWorkItemDetails(workItems, currentIndex)
