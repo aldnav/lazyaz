@@ -109,8 +109,12 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 
 	if workItem.Details != nil {
 		fmt.Fprintf(w, "Area Path\t%s\n", workItem.Details.SystemAreaPath)
+		fmt.Fprintf(w, "Priority\t%d\n", workItem.Details.Priority)
+		fmt.Fprintf(w, "Severity\t%s\n", workItem.Details.Severity)
 	} else {
 		fmt.Fprintf(w, "Area Path\tLoading...\n")
+		fmt.Fprintf(w, "Priority\tLoading...\n")
+		fmt.Fprintf(w, "Severity\tLoading...\n")
 	}
 
 	fmt.Fprintf(w, "Iteration Path\t%s\n", workItem.IterationPath)
@@ -458,13 +462,13 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			if len(workItems) > 0 {
 				app.QueueUpdateDraw(func() {
 					dropdown.SetLabel("")
-					redrawTable(table, workItems)
 					// Reset the index
 					currentIndex = 0
-					table.Select(0, 0)
+					redrawTable(table, workItems)
 					// Close the details panel
 					closeDetailPanel()
 					app.SetFocus(table)
+					table.Select(0, 0)
 				})
 			} else {
 				app.QueueUpdateDraw(func() {

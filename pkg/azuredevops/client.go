@@ -89,6 +89,8 @@ type WorkItemDetails struct {
 	CommentCount       int      `json:"Comment Count"`
 	LatestComment      string   `json:"Latest Comment"`
 	PRRefs             []string `json:"PR Refs"`
+	Priority           int      `json:"Priority"`
+	Severity           string   `json:"Severity"`
 }
 
 type PullRequestDetails struct {

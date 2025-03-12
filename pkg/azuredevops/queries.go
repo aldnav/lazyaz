@@ -15,7 +15,9 @@ const jmespathWorkItemDetailsQuery = `{` +
 	`"Board Column Done": fields."System.BoardColumnDone", ` +
 	`"Comment Count": fields."System.CommentCount", ` +
 	`"Latest Comment": fields."System.History", ` +
-	`"PR refs": relations[?attributes.name=='Pull Request'].url` +
+	`"PR refs": relations[?attributes.name=='Pull Request'].url, ` +
+	`"Priority": fields."Microsoft.VSTS.Common.Priority", ` +
+	`"Severity": fields."Microsoft.VSTS.Common.Severity"` +
 	`}`
 const jmespathPRDetailsQuery = `{` +
 	`"Title": title, ` +
