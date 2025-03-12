@@ -258,7 +258,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		// Details panel not added initially
 	// Actions specific for work items
 	actionsPanel := tview.NewFlex().
-		SetDirection(tview.FlexRow)
+		SetDirection(tview.FlexColumn)
 	dropdown := tview.NewDropDown().
 		// SetLabel("Select an option (hit Enter): ").
 		SetFieldBackgroundColor(tcell.ColorBlack).
@@ -276,6 +276,8 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		SetOptions([]string{"Assigned to me", "Was ever assigned to me", "All"}, nil)
 	dropdown.SetCurrentOption(0)
 	actionsPanel.AddItem(dropdown, 0, 1, false)
+	searchStatus := tview.NewTextView().SetText("").SetTextAlign(tview.AlignRight)
+	actionsPanel.AddItem(searchStatus, 0, 1, false)
 
 	// Variable to track if details are visible
 	detailsVisible := false
@@ -289,7 +291,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			table.Select(match.row, match.col)
 
 			// Update the search input to show current match position - directly update instead of using QueueUpdateDraw
-			searchInput.SetLabel(fmt.Sprintf("Match %d/%d /",
+			searchStatus.SetLabel(fmt.Sprintf("Match %d/%d",
 				currentMatchIndex+1, len(searchMatches)))
 		}
 	}
@@ -312,6 +314,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 				searchText = strings.TrimSpace(searchInput.GetText())
 				if searchText == "" {
 					// Exit search mode if search text is empty
+					searchStatus.SetLabel("")
 					closeSearch()
 					return
 				}
@@ -357,7 +360,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 					highlightMatch()
 				} else {
 					// Show "No matches" message - directly update the label instead of using QueueUpdateDraw
-					searchInput.SetLabel("No matches. /")
+					searchStatus.SetLabel("No matches!")
 				}
 				closeSearch()
 			} else if key == tcell.KeyEscape {
@@ -445,14 +448,28 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	// Handle work item filter dropdown selection
 	dropdown.SetSelectedFunc(func(text string, index int) {
 		app.SetFocus(table)
+		var potentialWorkItemFilter string
 		switch text {
 		case "Assigned to me":
-			workItemFilter = "me"
+			potentialWorkItemFilter = "me"
 		case "Was ever assigned to me":
-			workItemFilter = "was-ever-me"
+			potentialWorkItemFilter = "was-ever-me"
 		case "All":
-			workItemFilter = "all"
+			potentialWorkItemFilter = "all"
 		}
+		if potentialWorkItemFilter != workItemFilter {
+			workItemFilter = potentialWorkItemFilter
+		} else {
+			return
+		}
+
+		// Reset search variables
+		searchText = ""
+		previousSearchText = ""
+		searchMode = false
+		searchStatus.SetLabel("")
+		searchMatches = nil
+		currentMatchIndex = -1
 
 		// Refresh the work items
 		go func() {
