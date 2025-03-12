@@ -302,6 +302,8 @@ func (c *Client) GetWorkItemsForFilter(filter string) ([]WorkItem, error) {
 		wiql = workItemQueryMeSincePastMonth
 	case "was-ever-me":
 		wiql = workItemQueryWasEverMeSincePastMonth
+	case "all":
+		wiql = workItemsQueryAll
 	default:
 		wiql = workItemQueryMeSincePastMonth
 	}
@@ -392,6 +394,11 @@ func (wit *WorkItem) GetPRDetails(c *Client) ([]PullRequestDetails, error) {
 	}
 	wit.PRDetails = prs
 	return prs, nil
+}
+
+// Get the PR URL
+func (pr *PullRequestDetails) GetURL() string {
+	return fmt.Sprintf("%s/pullrequest/%d", pr.RepositoryURL, pr.ID)
 }
 
 // Retrieve PR details by PR ID

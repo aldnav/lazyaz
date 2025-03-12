@@ -48,6 +48,20 @@ func redrawTable(table *tview.Table, workItems []azuredevops.WorkItem) {
 			if column == 0 && row > 0 {
 				color = tcell.ColorPink
 			}
+			// State column
+			if column == 4 {
+				if cell == "To Do" || cell == "New" || cell == "Code Review" || cell == "Development" {
+					color = tcell.ColorBlue
+				} else if cell == "In Progress" {
+					color = tcell.ColorYellow
+				} else if cell == "Done" || cell == "ICR" || cell == "Closed" {
+					color = tcell.ColorGreen
+				} else if strings.Contains(cell, "Pending") || strings.Contains(cell, "Awaiting Decision") || cell == "On Hold" || cell == "Acceptance" {
+					color = tcell.ColorOrange
+				} else if cell == "Ready for test" || cell == "Test" {
+					color = tcell.ColorRed
+				}
+			}
 			align := tview.AlignLeft
 			tableCell := tview.NewTableCell(cell).
 				SetTextColor(color).
@@ -152,7 +166,7 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 				}
 				fmt.Fprintf(w, "\t  Status\t%s%s[white]\n", statusColor, pr.Status)
 				fmt.Fprintf(w, "\t  Author\t%s\n", pr.Author)
-				fmt.Fprintf(w, "\t  URL\t%s\n", pr.RepositoryURL)
+				fmt.Fprintf(w, "\t  URL\t%s\n", pr.GetURL())
 				fmt.Fprintf(w, "\t  Created Date\t%s\n", pr.CreatedDate)
 				fmt.Fprintf(w, "\t  Closed By\t%s\n", pr.ClosedBy)
 				fmt.Fprintf(w, "\t  Closed Date\t%s\n", pr.ClosedDate)
@@ -255,40 +269,16 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		).
 		// TODO "@Follows" and "@Mentions" are only working for web portal
 		// https://learn.microsoft.com/en-us/azure/devops/boards/queries/query-operators-variables?view=azure-devops#query-macros-or-variables
-		SetOptions([]string{"Assigned to me", "Was ever assigned to me"}, nil)
+		SetOptions([]string{"Assigned to me", "Was ever assigned to me", "All"}, nil)
 	dropdown.SetCurrentOption(0)
 	actionsPanel.AddItem(dropdown, 0, 1, false)
 
 	// Variable to track if details are visible
 	detailsVisible := false
 
-	// Function to clear highlights - declare before use
-	clearHighlights := func() {
-		// Reset all cell styles to default
-		rowCount := table.GetRowCount()
-		colCount := table.GetColumnCount()
-
-		for row := 0; row < rowCount; row++ {
-			for col := 0; col < colCount; col++ {
-				cell := table.GetCell(row, col)
-				if cell != nil {
-					// Restore original colors based on your table's styling logic
-					color := tcell.ColorWhite
-					if col == 0 && row > 0 {
-						color = tcell.ColorPink
-					}
-					cell.SetTextColor(color)
-				}
-			}
-		}
-	}
-
 	// Function to highlight the current match - declare before use
 	highlightMatch := func() {
 		if currentMatchIndex >= 0 && currentMatchIndex < len(searchMatches) {
-			// Clear previous highlights
-			clearHighlights()
-
 			match := searchMatches[currentMatchIndex]
 
 			// Select the cell with the match
@@ -370,8 +360,6 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 				// Exit search mode on Escape
 				closeSearch()
 
-				// Clear any highlights
-				clearHighlights()
 			}
 		})
 
@@ -455,10 +443,13 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			workItemFilter = "me"
 		case "Was ever assigned to me":
 			workItemFilter = "was-ever-me"
+		case "All":
+			workItemFilter = "all"
 		}
 
 		// Refresh the work items
 		go func() {
+			dropdown.SetLabel("Fetching ")
 			var err error
 			workItems, err = client.GetWorkItemsForFilter(workItemFilter)
 			if err != nil {
@@ -466,18 +457,22 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			}
 			if len(workItems) > 0 {
 				app.QueueUpdateDraw(func() {
+					dropdown.SetLabel("")
 					redrawTable(table, workItems)
 					// Reset the index
 					currentIndex = 0
 					table.Select(0, 0)
 					// Close the details panel
 					closeDetailPanel()
+					app.SetFocus(table)
 				})
 			} else {
 				app.QueueUpdateDraw(func() {
+					dropdown.SetLabel("")
 					table.SetCell(0, 0, tview.NewTableCell("No work items found").
 						SetTextColor(tcell.ColorRed).
 						SetAlign(tview.AlignCenter))
+					app.SetFocus(table)
 				})
 			}
 		}()
