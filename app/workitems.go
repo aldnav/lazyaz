@@ -192,7 +192,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	var workItems []azuredevops.WorkItem
 	var currentIndex int
 	var loadingWorkItemID int = -1
-	var client *azuredevops.Client
+	// var client *azuredevops.Client
 	var searchText string
 	var previousSearchText string
 	workItemFilter := "me"
@@ -517,13 +517,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 
 	// Integrate with Azure DevOps
 	go func() {
-		config, err := azuredevops.NewConfig()
-		if err != nil {
-			log.Printf("Configuration error: %v", err)
-		}
-		_organization = config.Organization
-		_project = config.Project
-		client = azuredevops.NewClient(config)
+		var err error
 		workItems, err = client.GetWorkItemsForFilter(workItemFilter)
 		if err != nil {
 			log.Printf("Error fetching work items: %v", err)

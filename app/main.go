@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/aldnav/lazyaz/pkg/azuredevops"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -14,6 +15,7 @@ type Slide func(nextSlide func()) (title string, content tview.Primitive)
 
 var app = tview.NewApplication()
 var activePanel string
+var client *azuredevops.Client
 
 func main() {
 	log.SetOutput(os.Stderr)
@@ -65,11 +67,22 @@ func main() {
 	}
 	info.Highlight("0")
 
+	// Connection status
+	connectionStatus := tview.NewTextView().
+		SetText("🚀 Connecting to Azure DevOps...").
+		SetTextAlign(tview.AlignRight).
+		SetTextColor(tcell.ColorYellow)
+
+	infoBar := tview.NewFlex().
+		SetDirection(tview.FlexColumn).
+		AddItem(info, 0, 1, false).
+		AddItem(connectionStatus, 0, 1, false)
+
 	// Creating the main layout
 	layout := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(pages, 0, 1, true).
-		AddItem(info, 1, 1, false)
+		AddItem(infoBar, 1, 1, false)
 
 	// Shortcuts to navigate between slides
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -93,6 +106,24 @@ func main() {
 	app.EnableMouse(true)
 
 	// Integrate with Azure DevOps
+	go func() {
+		config, err := azuredevops.NewConfig()
+		if err != nil {
+			log.Printf("Configuration error: %v", err)
+		}
+		_organization = config.Organization
+		_project = config.Project
+		client = azuredevops.NewClient(config)
+		if err != nil {
+			log.Printf("Error fetching work items: %v", err)
+			connectionStatus.SetText("Error connecting to Azure DevOps: Inspect logs for more details.")
+		} else {
+			app.QueueUpdateDraw(func() {
+				connectionStatus.SetText(fmt.Sprintf("✅ Connected to %s ", _organization))
+				connectionStatus.SetTextColor(tcell.ColorGreen)
+			})
+		}
+	}()
 
 	// Start the application.
 	if err := app.SetRoot(layout, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
