@@ -65,20 +65,21 @@ type Client struct {
 }
 
 type WorkItem struct {
-	ID            int                  `json:"Id"`
-	WorkItemType  string               `json:"Work Item Type"`
-	Title         string               `json:"Title"`
-	AssignedTo    string               `json:"Assigned To"`
-	State         string               `json:"State"`
-	Tags          string               `json:"Tags"`
-	IterationPath string               `json:"Iteration Path"`
-	CreatedDate   time.Time            `json:"CreatedDate"`
-	CreatedBy     string               `json:"CreatedBy"`
-	ChangedDate   time.Time            `json:"ChangedDate"`
-	ChangedBy     string               `json:"ChangedBy"`
-	Description   string               `json:"Description"`
-	Details       *WorkItemDetails     `json:"-"`
-	PRDetails     []PullRequestDetails `json:"-"`
+	ID                   int                  `json:"Id"`
+	WorkItemType         string               `json:"Work Item Type"`
+	Title                string               `json:"Title"`
+	AssignedTo           string               `json:"Assigned To"`
+	AssignedToUniqueName string               `json:"Assigned To Unique Name"`
+	State                string               `json:"State"`
+	Tags                 string               `json:"Tags"`
+	IterationPath        string               `json:"Iteration Path"`
+	CreatedDate          time.Time            `json:"CreatedDate"`
+	CreatedBy            string               `json:"CreatedBy"`
+	ChangedDate          time.Time            `json:"ChangedDate"`
+	ChangedBy            string               `json:"ChangedBy"`
+	Description          string               `json:"Description"`
+	Details              *WorkItemDetails     `json:"-"`
+	PRDetails            []PullRequestDetails `json:"-"`
 }
 
 type WorkItemDetails struct {
@@ -115,6 +116,14 @@ type PullRequestDetails struct {
 	TargetRefName       string      `json:"Target Ref Name"`
 	Title               string      `json:"Title"`
 	WorkItemRefs        []string    `json:"Work Item Refs"`
+}
+
+type UserProfile struct {
+	DisplayName string `json:"displayName"`
+	ID          string `json:"id"`
+	Mail        string `json:"mail"`
+	GivenName   string `json:"givenName"`
+	Surname     string `json:"surname"`
 }
 
 // NewConfig creates a new Config, first trying to read from config file, then falling back to environment variables
@@ -399,6 +408,11 @@ func (wit *WorkItem) GetPRDetails(c *Client) ([]PullRequestDetails, error) {
 	return prs, nil
 }
 
+// Determines if the work item is assigned to the current user
+func (wit *WorkItem) IsAssignedToUser(user *UserProfile) bool {
+	return wit.AssignedToUniqueName == user.Mail
+}
+
 // Get the PR URL
 func (pr *PullRequestDetails) GetURL() string {
 	return fmt.Sprintf("%s/pullrequest/%d", pr.RepositoryURL, pr.ID)
@@ -455,4 +469,20 @@ func (c *Client) GetPRDetails(prID string) (*PullRequestDetails, error) {
 	}
 
 	return &detail, nil
+}
+
+// Retrieve current user profile
+func (c *Client) GetUserProfile() (*UserProfile, error) {
+	output, err := runAzCommand("ad", "signed-in-user", "show", "--query", jmespathUserProfileQuery, "--output", "json")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching user profile: %v", err)
+	}
+
+	// Parse the output
+	var profile UserProfile
+	if err := json.Unmarshal(output, &profile); err != nil {
+		return nil, fmt.Errorf("error parsing user profile: %v", err)
+	}
+
+	return &profile, nil
 }

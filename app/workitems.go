@@ -38,6 +38,11 @@ func redrawTable(table *tview.Table, workItems []azuredevops.WorkItem) {
 	table.Clear()
 	tableData := workItemsToTableData(workItems)
 	for row, line := range strings.Split(tableData, "\n") {
+		// Only access workItems for non-header rows
+		var curWorkItem azuredevops.WorkItem
+		if row > 0 && row-1 < len(workItems) {
+			curWorkItem = workItems[row-1]
+		}
 		for column, cell := range strings.Split(line, "|") {
 			color := tcell.ColorWhite
 			// color := tcell.ColorGray
@@ -62,6 +67,16 @@ func redrawTable(table *tview.Table, workItems []azuredevops.WorkItem) {
 					color = tcell.ColorRed
 				}
 			}
+
+			// "Assigned to" column
+			if column == 3 && row > 0 {
+				if row-1 < len(workItems) && curWorkItem.IsAssignedToUser(activeUser) {
+					color = tcell.ColorLimeGreen
+				} else {
+					color = tcell.ColorWhite
+				}
+			}
+
 			align := tview.AlignLeft
 			tableCell := tview.NewTableCell(cell).
 				SetTextColor(color).
@@ -95,7 +110,12 @@ func normalizeDataString(data string) string {
 	return strip.StripTags(data)
 }
 
+func isSameAsUser(name string) bool {
+	return name == activeUser.DisplayName
+}
+
 func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
+	workItemIsAssignedToUser := workItem.IsAssignedToUser(activeUser)
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.TabIndent)
 
@@ -104,7 +124,11 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 	fmt.Fprintf(w, "ID\t%d\n", workItem.ID)
 	fmt.Fprintf(w, "URL\t%s\n", workItem.GetURL(_organization, _project))
 	fmt.Fprintf(w, "Work Item Type\t%s\n", workItem.WorkItemType)
-	fmt.Fprintf(w, "Assigned To\t%s\n", workItem.AssignedTo)
+	if workItemIsAssignedToUser {
+		fmt.Fprintf(w, "Assigned To\t[green]%s[white]\n", workItem.AssignedTo)
+	} else {
+		fmt.Fprintf(w, "Assigned To\t%s\n", workItem.AssignedTo)
+	}
 	fmt.Fprintf(w, "State\t%s\n", workItem.State)
 
 	if workItem.Details != nil {
@@ -138,9 +162,17 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 	}
 
 	fmt.Fprintf(w, "Created On\t%s\n", workItem.CreatedDate)
-	fmt.Fprintf(w, "Created By\t%s\n", workItem.CreatedBy)
+	if isSameAsUser(workItem.CreatedBy) {
+		fmt.Fprintf(w, "Created By\t[green]%s[white]\n", workItem.CreatedBy)
+	} else {
+		fmt.Fprintf(w, "Created By\t%s\n", workItem.CreatedBy)
+	}
 	fmt.Fprintf(w, "Changed On\t%s\n", workItem.ChangedDate)
-	fmt.Fprintf(w, "Changed By\t%s\n", workItem.ChangedBy)
+	if isSameAsUser(workItem.ChangedBy) {
+		fmt.Fprintf(w, "Changed By\t[green]%s[white]\n", workItem.ChangedBy)
+	} else {
+		fmt.Fprintf(w, "Changed By\t%s\n", workItem.ChangedBy)
+	}
 
 	if workItem.Details != nil {
 		fmt.Fprintf(w, "\nAdditional details\n")
@@ -169,10 +201,18 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 					statusColor = "[yellow]"
 				}
 				fmt.Fprintf(w, "\t  Status\t%s%s[white]\n", statusColor, pr.Status)
-				fmt.Fprintf(w, "\t  Author\t%s\n", pr.Author)
+				if isSameAsUser(pr.Author) {
+					fmt.Fprintf(w, "\t  Author\t[green]%s[white]\n", pr.Author)
+				} else {
+					fmt.Fprintf(w, "\t  Author\t%s\n", pr.Author)
+				}
 				fmt.Fprintf(w, "\t  URL\t%s\n", pr.GetURL())
 				fmt.Fprintf(w, "\t  Created Date\t%s\n", pr.CreatedDate)
-				fmt.Fprintf(w, "\t  Closed By\t%s\n", pr.ClosedBy)
+				if isSameAsUser(pr.ClosedBy) {
+					fmt.Fprintf(w, "\t  Closed By\t[green]%s[white]\n", pr.ClosedBy)
+				} else {
+					fmt.Fprintf(w, "\t  Closed By\t%s\n", pr.ClosedBy)
+				}
 				fmt.Fprintf(w, "\t  Closed Date\t%s\n", pr.ClosedDate)
 				fmt.Fprintf(w, "\t  From branch\t%s\n", pr.SourceRefName)
 				fmt.Fprintf(w, "\t  To branch\t%s\n", pr.TargetRefName)

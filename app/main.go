@@ -16,6 +16,7 @@ type Slide func(nextSlide func()) (title string, content tview.Primitive)
 var app = tview.NewApplication()
 var activePanel string
 var client *azuredevops.Client
+var activeUser *azuredevops.UserProfile
 
 func main() {
 	log.SetOutput(os.Stderr)
@@ -122,6 +123,11 @@ func main() {
 				connectionStatus.SetText(fmt.Sprintf("✅ Connected to %s ", _organization))
 				connectionStatus.SetTextColor(tcell.ColorGreen)
 			})
+		}
+		// Get current user
+		activeUser, err = client.GetUserProfile()
+		if err != nil {
+			log.Printf("Error fetching user profile: %v", err)
 		}
 	}()
 

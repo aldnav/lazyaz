@@ -6,7 +6,21 @@ const (
 	workItemsQueryAll                    = `SELECT * FROM workitems WHERE [System.CreatedDate] >= @Today - 90 ORDER BY [System.CreatedDate] DESC`
 )
 
-const jmespathWorkItemQuery = `[].{Id: fields."System.Id", "Work Item Type": fields."System.WorkItemType", "Title": fields."System.Title", "Assigned To": fields."System.AssignedTo".displayName, "State": fields."System.State", "Tags": fields."System.Tags", "Iteration Path": fields."System.IterationPath", "CreatedDate": fields."System.CreatedDate", "CreatedBy": fields."System.CreatedBy".displayName, "ChangedDate": fields."System.ChangedDate", "ChangedBy": fields."System.ChangedBy".displayName, "Description": fields."System.Description"}`
+const jmespathWorkItemQuery = `[].{` +
+	`Id: fields."System.Id", ` +
+	`"Work Item Type": fields."System.WorkItemType", ` +
+	`"Title": fields."System.Title", ` +
+	`"Assigned To": fields."System.AssignedTo".displayName, ` +
+	`"Assigned To Unique Name": fields."System.AssignedTo".uniqueName, ` +
+	`"State": fields."System.State", ` +
+	`"Tags": fields."System.Tags", ` +
+	`"Iteration Path": fields."System.IterationPath", ` +
+	`"CreatedDate": fields."System.CreatedDate", ` +
+	`"CreatedBy": fields."System.CreatedBy".displayName, ` +
+	`"ChangedDate": fields."System.ChangedDate", ` +
+	`"ChangedBy": fields."System.ChangedBy".displayName, ` +
+	`"Description": fields."System.Description"` +
+	`}`
 const jmespathWorkItemDetailsQuery = `{` +
 	`"Repro Steps": fields."Microsoft.VSTS.TCM.ReproSteps", ` +
 	`"System.AreaPath": fields."System.AreaPath", ` +
@@ -41,7 +55,8 @@ const jmespathPRDetailsQuery = `{` +
 	`"Closed By": closedBy.displayName, ` +
 	`"Closed Date": closedDate ` +
 	`}`
+const jmespathUserProfileQuery = `{"id": id, "displayName": displayName, "mail": mail, "givenName": givenName, "surname": surname}`
 
-	// References:
-	// - https://learn.microsoft.com/en-us/azure/devops/boards/queries/query-operators-variables?view=azure-devops
-	// - https://learn.microsoft.com/en-us/azure/devops/boards/queries/wiql-syntax?view=azure-devops
+// References:
+// - https://learn.microsoft.com/en-us/azure/devops/boards/queries/query-operators-variables?view=azure-devops
+// - https://learn.microsoft.com/en-us/azure/devops/boards/queries/wiql-syntax?view=azure-devops
