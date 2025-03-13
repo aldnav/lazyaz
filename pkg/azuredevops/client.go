@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -418,6 +419,27 @@ func (pr *PullRequestDetails) GetURL() string {
 	return fmt.Sprintf("%s/pullrequest/%d", pr.RepositoryURL, pr.ID)
 }
 
+// Get number of approvals
+func (pr *PullRequestDetails) GetApprovals() int {
+	approvals := 0
+	for _, vote := range pr.ReviewersVotes {
+		if vote == 10 || vote == 5 {
+			approvals++
+		}
+	}
+	return approvals
+}
+
+// Get shortened branch name with refs/heads/
+func (pr *PullRequestDetails) GetShortBranchName() string {
+	return strings.TrimPrefix(pr.SourceRefName, "refs/heads/")
+}
+
+// Get shortened branch name with refs/heads/
+func (pr *PullRequestDetails) GetShortTargetBranchName() string {
+	return strings.TrimPrefix(pr.TargetRefName, "refs/heads/")
+}
+
 type VoteInfo struct {
 	Reviewer    string
 	Description string
@@ -485,4 +507,55 @@ func (c *Client) GetUserProfile() (*UserProfile, error) {
 	}
 
 	return &profile, nil
+}
+
+// TODO Break up into multiple files
+var PRStatuses = []string{"active", "abandoned", "completed", "all"}
+
+// Get PRs created by the current user (by default these are opened PRs)
+func (c *Client) GetPRsCreatedByUser(user string, status string) ([]PullRequestDetails, error) {
+	cmdParams := []string{"repos", "pr", "list", "--include-links", "--creator", user, "--query", jmespathPRListsQuery, "--output", "json"}
+	if status != "" && slices.Contains(PRStatuses, status) {
+		cmdParams = append(cmdParams, "--status", status)
+	}
+	output, err := runAzCommand(cmdParams...)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching PRs: %v", err)
+	}
+
+	// Parse the output
+	var prs []PullRequestDetails
+	if err := json.Unmarshal(output, &prs); err != nil {
+		return nil, fmt.Errorf("error parsing PRs: %v", err)
+	}
+
+	return prs, nil
+}
+
+// Get PRs assigned to the current user
+func (c *Client) GetPRsAssignedToUser(user string) ([]PullRequestDetails, error) {
+	output, err := runAzCommand("repos", "pr", "list", "--include-links", "--reviewer", user, "--status", "active", "--top", "20", "--query", jmespathPRListsQuery, "--output", "json")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching PRs: %v", err)
+	}
+
+	// Parse the output
+	var prs []PullRequestDetails
+	if err := json.Unmarshal(output, &prs); err != nil {
+		return nil, fmt.Errorf("error parsing PRs: %v", err)
+	}
+
+	return prs, nil
+}
+
+func (c *Client) GetActivePRs() ([]PullRequestDetails, error) {
+	return c.GetPRsCreatedByUser("", "active")
+}
+
+func (c *Client) GetCompletedPRs() ([]PullRequestDetails, error) {
+	return c.GetPRsCreatedByUser("", "completed")
+}
+
+func (c *Client) GetAbandonedPRs() ([]PullRequestDetails, error) {
+	return c.GetPRsCreatedByUser("", "abandoned")
 }

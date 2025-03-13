@@ -13,7 +13,6 @@ const pipelineTableData = `ID|Name|State|CreatedBy|CreatedDate
 3|Pipeline3|Merged|Alice Johnson|2021-01-03
 `
 
-// Cover returns the cover page.
 func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 	table := tview.NewTable().
 		SetFixed(1, 1).

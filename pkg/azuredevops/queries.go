@@ -1,6 +1,7 @@
 package azuredevops
 
 const (
+	// Work Items
 	workItemQueryMeSincePastMonth        = `SELECT * FROM workitems WHERE [System.AssignedTo] = @me AND [System.CreatedDate] >= @Today - 90 ORDER BY [System.CreatedDate] DESC`
 	workItemQueryWasEverMeSincePastMonth = `SELECT * FROM workitems WHERE EVER [System.AssignedTo] = @me AND [System.CreatedDate] >= @Today - 90 ORDER BY [System.CreatedDate] DESC`
 	workItemsQueryAll                    = `SELECT * FROM workitems WHERE [System.CreatedDate] >= @Today - 90 ORDER BY [System.CreatedDate] DESC`
@@ -55,6 +56,7 @@ const jmespathPRDetailsQuery = `{` +
 	`"Closed By": closedBy.displayName, ` +
 	`"Closed Date": closedDate ` +
 	`}`
+const jmespathPRListsQuery = `[].` + jmespathPRDetailsQuery
 const jmespathUserProfileQuery = `{"id": id, "displayName": displayName, "mail": mail, "givenName": givenName, "surname": surname}`
 
 // References:

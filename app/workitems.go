@@ -51,7 +51,7 @@ func redrawTable(table *tview.Table, workItems []azuredevops.WorkItem) {
 			// 	color = tcell.ColorWhite
 			// }
 			if column == 0 && row > 0 {
-				color = tcell.ColorPink
+				color = tcell.ColorRed
 			}
 			// State column
 			if column == 4 {
@@ -237,7 +237,6 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 	return buf.String()
 }
 
-// Cover returns the cover page.
 func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	log.SetOutput(os.Stderr)
 	log.SetPrefix("[lazyaz] ")
