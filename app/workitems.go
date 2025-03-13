@@ -176,7 +176,19 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 				fmt.Fprintf(w, "\t  Closed Date\t%s\n", pr.ClosedDate)
 				fmt.Fprintf(w, "\t  From branch\t%s\n", pr.SourceRefName)
 				fmt.Fprintf(w, "\t  To branch\t%s\n", pr.TargetRefName)
-				fmt.Fprintf(w, "\t  Reviewers\t%s\n", strings.Join(pr.Reviewers, ", "))
+				votesInfo := pr.GetVotesInfo()
+				fmt.Fprintf(w, "\t  Reviewers\n")
+				for _, vote := range votesInfo {
+					color := "[white]"
+					if vote.Description == "approved" || vote.Description == "approved with suggestions" {
+						color = "[green]"
+					} else if vote.Description == "waiting for author" {
+						color = "[yellow]"
+					} else if vote.Description == "rejected" {
+						color = "[red]"
+					}
+					fmt.Fprintf(w, "\t  \t%s\t%s%s[white]\n", vote.Reviewer, color, vote.Description)
+				}
 			}
 		}
 	}

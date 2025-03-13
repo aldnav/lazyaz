@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -401,6 +402,43 @@ func (wit *WorkItem) GetPRDetails(c *Client) ([]PullRequestDetails, error) {
 // Get the PR URL
 func (pr *PullRequestDetails) GetURL() string {
 	return fmt.Sprintf("%s/pullrequest/%d", pr.RepositoryURL, pr.ID)
+}
+
+type VoteInfo struct {
+	Reviewer    string
+	Description string
+	Value       int
+}
+
+// Get the votes info
+func (pr *PullRequestDetails) GetVotesInfo() []VoteInfo {
+	// Ref: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-reviewers/create-pull-request-reviewer?view=azure-devops-rest-6.0&tabs=HTTP
+	// 10 - approved 5 - approved with suggestions 0 - no vote -5 - waiting for author -10 - rejected
+	// Map reviewers with votes
+	voteIdxMap := map[int]string{
+		10:  "approved",
+		5:   "approved with suggestions",
+		0:   "no vote",
+		-5:  "waiting for author",
+		-10: "rejected",
+	}
+	// Convert map to slice for sorting
+	votes := make([]VoteInfo, 0, len(pr.Reviewers))
+	for idx, reviewer := range pr.Reviewers {
+		votes = append(votes, VoteInfo{
+			Reviewer:    reviewer,
+			Description: voteIdxMap[pr.ReviewersVotes[idx]],
+			Value:       pr.ReviewersVotes[idx],
+		})
+	}
+	// Sort slice by vote value in descending order, with secondary sort by reviewer name
+	sort.Slice(votes, func(i, j int) bool {
+		if votes[i].Value != votes[j].Value {
+			return votes[i].Value > votes[j].Value
+		}
+		return votes[i].Reviewer < votes[j].Reviewer
+	})
+	return votes
 }
 
 // Retrieve PR details by PR ID
