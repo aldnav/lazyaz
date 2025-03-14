@@ -119,78 +119,80 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.TabIndent)
 
-	// Build header section
-	fmt.Fprintf(w, "Title\t%s\n", workItem.Title)
-	fmt.Fprintf(w, "ID\t%d\n", workItem.ID)
-	fmt.Fprintf(w, "URL\t%s\n", workItem.GetURL(_organization, _project))
-	fmt.Fprintf(w, "Work Item Type\t%s\n", workItem.WorkItemType)
+	var keyColor = "[blue]"
+	var valueColor = "[white]"
+
+	fmt.Fprintf(w, "%sTitle%s\t%s\n", keyColor, valueColor, workItem.Title)
+	fmt.Fprintf(w, "%sID%s\t%d\n", keyColor, valueColor, workItem.ID)
+	fmt.Fprintf(w, "%sURL%s\t%s\n", keyColor, valueColor, workItem.GetURL(_organization, _project))
+	fmt.Fprintf(w, "%sWork Item Type%s\t%s\n", keyColor, valueColor, workItem.WorkItemType)
 	if workItemIsAssignedToUser {
-		fmt.Fprintf(w, "Assigned To\t[green]%s[white]\n", workItem.AssignedTo)
+		fmt.Fprintf(w, "%sAssigned To%s\t[green]%s[white]\n", keyColor, valueColor, workItem.AssignedTo)
 	} else {
-		fmt.Fprintf(w, "Assigned To\t%s\n", workItem.AssignedTo)
+		fmt.Fprintf(w, "%sAssigned To%s\t%s\n", keyColor, valueColor, workItem.AssignedTo)
 	}
-	fmt.Fprintf(w, "State\t%s\n", workItem.State)
+	fmt.Fprintf(w, "%sState%s\t%s\n", keyColor, valueColor, workItem.State)
 
 	if workItem.Details != nil {
-		fmt.Fprintf(w, "Area Path\t%s\n", workItem.Details.SystemAreaPath)
-		fmt.Fprintf(w, "Priority\t%d\n", workItem.Details.Priority)
-		fmt.Fprintf(w, "Severity\t%s\n", workItem.Details.Severity)
+		fmt.Fprintf(w, "%sArea Path%s\t%s\n", keyColor, valueColor, workItem.Details.SystemAreaPath)
+		fmt.Fprintf(w, "%sPriority%s\t%d\n", keyColor, valueColor, workItem.Details.Priority)
+		fmt.Fprintf(w, "%sSeverity%s\t%s\n", keyColor, valueColor, workItem.Details.Severity)
 	} else {
-		fmt.Fprintf(w, "Area Path\tLoading...\n")
-		fmt.Fprintf(w, "Priority\tLoading...\n")
-		fmt.Fprintf(w, "Severity\tLoading...\n")
+		fmt.Fprintf(w, "%sArea Path%s\tLoading...\n", keyColor, valueColor)
+		fmt.Fprintf(w, "%sPriority%s\tLoading...\n", keyColor, valueColor)
+		fmt.Fprintf(w, "%sSeverity%s\tLoading...\n", keyColor, valueColor)
 	}
 
-	fmt.Fprintf(w, "Iteration Path\t%s\n", workItem.IterationPath)
+	fmt.Fprintf(w, "%sIteration Path%s\t%s\n", keyColor, valueColor, workItem.IterationPath)
 
 	if workItem.WorkItemType == "Bug" {
 		if workItem.Details != nil {
-			fmt.Fprintf(w, "Description\t\n%s\n\n", normalizeDataString(workItem.Details.ReproSteps))
+			fmt.Fprintf(w, "%sDescription%s\t\n%s\n\n", keyColor, valueColor, normalizeDataString(workItem.Details.ReproSteps))
 		} else {
-			fmt.Fprintf(w, "Description\tLoading...\n")
+			fmt.Fprintf(w, "%sDescription%s\tLoading...\n", keyColor, valueColor)
 		}
 	} else {
-		fmt.Fprintf(w, "Description\t\n%s\n\n", normalizeDataString(workItem.Description))
+		fmt.Fprintf(w, "%sDescription%s\t\n%s\n\n", keyColor, valueColor, normalizeDataString(workItem.Description))
 	}
 
 	// Add tags section
-	fmt.Fprintf(w, "Tags\t")
+	fmt.Fprintf(w, "%sTags%s\t", keyColor, valueColor)
 	if len(workItem.Tags) > 0 {
 		fmt.Fprintf(w, "%s\n", workItem.Tags)
 	} else {
 		fmt.Fprintf(w, "[]\n")
 	}
 
-	fmt.Fprintf(w, "Created On\t%s\n", workItem.CreatedDate)
+	fmt.Fprintf(w, "%sCreated On%s\t%s\n", keyColor, valueColor, workItem.CreatedDate)
 	if isSameAsUser(workItem.CreatedBy) {
-		fmt.Fprintf(w, "Created By\t[green]%s[white]\n", workItem.CreatedBy)
+		fmt.Fprintf(w, "%sCreated By%s\t[green]%s[white]\n", keyColor, valueColor, workItem.CreatedBy)
 	} else {
-		fmt.Fprintf(w, "Created By\t%s\n", workItem.CreatedBy)
+		fmt.Fprintf(w, "%sCreated By%s\t%s\n", keyColor, valueColor, workItem.CreatedBy)
 	}
-	fmt.Fprintf(w, "Changed On\t%s\n", workItem.ChangedDate)
+	fmt.Fprintf(w, "%sChanged On%s\t%s\n", keyColor, valueColor, workItem.ChangedDate)
 	if isSameAsUser(workItem.ChangedBy) {
-		fmt.Fprintf(w, "Changed By\t[green]%s[white]\n", workItem.ChangedBy)
+		fmt.Fprintf(w, "%sChanged By%s\t[green]%s[white]\n", keyColor, valueColor, workItem.ChangedBy)
 	} else {
-		fmt.Fprintf(w, "Changed By\t%s\n", workItem.ChangedBy)
+		fmt.Fprintf(w, "%sChanged By%s\t%s\n", keyColor, valueColor, workItem.ChangedBy)
 	}
 
 	if workItem.Details != nil {
-		fmt.Fprintf(w, "\nAdditional details\n")
-		fmt.Fprintf(w, "Acceptance Criteria\t\n%s\n\n", normalizeDataString(workItem.Details.AcceptanceCriteria))
-		fmt.Fprintf(w, "Board Column\t%s\n", workItem.Details.BoardColumn)
-		fmt.Fprintf(w, "Comment Count\t%d\n", workItem.Details.CommentCount)
+		fmt.Fprintf(w, "\n%sAdditional details%s\n", keyColor, valueColor)
+		fmt.Fprintf(w, "%sAcceptance Criteria%s\t\n%s\n\n", keyColor, valueColor, normalizeDataString(workItem.Details.AcceptanceCriteria))
+		fmt.Fprintf(w, "%sBoard Column%s\t%s\n", keyColor, valueColor, workItem.Details.BoardColumn)
+		fmt.Fprintf(w, "%sComment Count%s\t%d\n", keyColor, valueColor, workItem.Details.CommentCount)
 		latestComment := normalizeDataString(workItem.Details.LatestComment)
 		if latestComment == "" {
 			latestComment = "[red][Cannot fetch latest comment][white]"
 		}
-		fmt.Fprintf(w, "Latest Comment\t\n%s\n\n", latestComment)
+		fmt.Fprintf(w, "%sLatest Comment%s\t\n%s\n\n", keyColor, valueColor, latestComment)
 		// fmt.Fprintf(w, "PR Refs\t%s\n", strings.Join(workItem.GetPRs(), ", "))
 		if len(workItem.PRDetails) > 0 {
-			fmt.Fprintf(w, "Associated Pull Requests\n\n")
+			fmt.Fprintf(w, "%sAssociated Pull Requests%s\n\n", keyColor, valueColor)
 			for _, pr := range workItem.PRDetails {
 				fmt.Fprintf(w, "\t- %d %s\n", pr.ID, pr.Title)
 				if pr.IsDraft {
-					fmt.Fprintf(w, "\t  Is Draft\t[yellow][Yes][white]\n")
+					fmt.Fprintf(w, "\t  %sIs Draft%s\t[yellow][Yes][white]\n", keyColor, valueColor)
 				}
 				statusColor := "[white]"
 				if pr.Status == "completed" {
@@ -200,24 +202,24 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 				} else if pr.Status == "active" {
 					statusColor = "[yellow]"
 				}
-				fmt.Fprintf(w, "\t  Status\t%s%s[white]\n", statusColor, pr.Status)
+				fmt.Fprintf(w, "\t  %sStatus%s\t%s%s[white]\n", keyColor, valueColor, statusColor, pr.Status)
 				if isSameAsUser(pr.Author) {
-					fmt.Fprintf(w, "\t  Author\t[green]%s[white]\n", pr.Author)
+					fmt.Fprintf(w, "\t  %sAuthor%s\t[green]%s[white]\n", keyColor, valueColor, pr.Author)
 				} else {
-					fmt.Fprintf(w, "\t  Author\t%s\n", pr.Author)
+					fmt.Fprintf(w, "\t  %sAuthor%s\t%s\n", keyColor, valueColor, pr.Author)
 				}
-				fmt.Fprintf(w, "\t  URL\t%s\n", pr.GetURL())
-				fmt.Fprintf(w, "\t  Created Date\t%s\n", pr.CreatedDate)
+				fmt.Fprintf(w, "\t  %sURL%s\t%s\n", keyColor, valueColor, pr.GetURL())
+				fmt.Fprintf(w, "\t  %sCreated Date%s\t%s\n", keyColor, valueColor, pr.CreatedDate)
 				if isSameAsUser(pr.ClosedBy) {
-					fmt.Fprintf(w, "\t  Closed By\t[green]%s[white]\n", pr.ClosedBy)
+					fmt.Fprintf(w, "\t  %sClosed By%s\t[green]%s[white]\n", keyColor, valueColor, pr.ClosedBy)
 				} else {
-					fmt.Fprintf(w, "\t  Closed By\t%s\n", pr.ClosedBy)
+					fmt.Fprintf(w, "\t  %sClosed By%s\t%s\n", keyColor, valueColor, pr.ClosedBy)
 				}
-				fmt.Fprintf(w, "\t  Closed Date\t%s\n", pr.ClosedDate)
-				fmt.Fprintf(w, "\t  From branch\t%s\n", pr.SourceRefName)
-				fmt.Fprintf(w, "\t  To branch\t%s\n", pr.TargetRefName)
+				fmt.Fprintf(w, "\t  %sClosed Date%s\t%s\n", keyColor, valueColor, pr.ClosedDate)
+				fmt.Fprintf(w, "\t  %sFrom branch%s\t%s\n", keyColor, valueColor, pr.SourceRefName)
+				fmt.Fprintf(w, "\t  %sTo branch%s\t%s\n", keyColor, valueColor, pr.TargetRefName)
 				votesInfo := pr.GetVotesInfo()
-				fmt.Fprintf(w, "\t  Reviewers\n")
+				fmt.Fprintf(w, "\t  %sReviewers%s\n", keyColor, valueColor)
 				for _, vote := range votesInfo {
 					color := "[white]"
 					if vote.Description == "approved" || vote.Description == "approved with suggestions" {

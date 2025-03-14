@@ -115,22 +115,24 @@ func prToDetailsData(pr *azuredevops.PullRequestDetails) string {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.TabIndent)
 
-	fmt.Fprintf(w, "Title\t%s\n", pr.Title)
-	fmt.Fprintf(w, "ID\t%d\n", pr.ID)
-	fmt.Fprintf(w, "Status\t%s\n", cases.Title(language.English).String(pr.Status))
-	fmt.Fprintf(w, "Draft\t%s\n", cases.Title(language.English).String(strconv.FormatBool(pr.IsDraft)))
-	fmt.Fprintf(w, "Merge Status\t%s\n", cases.Title(language.English).String(pr.MergeStatus))
+	var keyColor = "[blue]"
+	var valueColor = "[white]"
+	fmt.Fprintf(w, "%sTitle%s\t%s\n", keyColor, valueColor, pr.Title)
+	fmt.Fprintf(w, "%sID%s\t%d\n", keyColor, valueColor, pr.ID)
+	fmt.Fprintf(w, "%sStatus%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(pr.Status))
+	fmt.Fprintf(w, "%sDraft%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(strconv.FormatBool(pr.IsDraft)))
+	fmt.Fprintf(w, "%sMerge Status%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(pr.MergeStatus))
 	if _isSameAsUser(pr.Author) {
-		fmt.Fprintf(w, "Creator\t%s\n", "[green]"+pr.Author+"[white]")
+		fmt.Fprintf(w, "%sCreator%s\t%s\n", keyColor, valueColor, "[green]"+pr.Author+"[white]")
 	} else {
-		fmt.Fprintf(w, "Creator\t%s\n", pr.Author)
+		fmt.Fprintf(w, "%sCreator%s\t%s\n", keyColor, valueColor, pr.Author)
 	}
-	fmt.Fprintf(w, "Created On\t%s\n", pr.CreatedDate)
-	fmt.Fprintf(w, "Repository\t%s\n", pr.Repository)
-	fmt.Fprintf(w, "Source Branch\t%s\n", pr.GetShortBranchName())
-	fmt.Fprintf(w, "Target Branch\t%s\n", pr.GetShortTargetBranchName())
-	fmt.Fprintf(w, "URL\t%s\n", pr.GetOrgURL(client.Config.Organization))
-	fmt.Fprintf(w, "Reviews\n")
+	fmt.Fprintf(w, "%sCreated On%s\t%s\n", keyColor, valueColor, pr.CreatedDate)
+	fmt.Fprintf(w, "%sRepository%s\t%s\n", keyColor, valueColor, pr.Repository)
+	fmt.Fprintf(w, "%sSource Branch%s\t%s\n", keyColor, valueColor, pr.GetShortBranchName())
+	fmt.Fprintf(w, "%sTarget Branch%s\t%s\n", keyColor, valueColor, pr.GetShortTargetBranchName())
+	fmt.Fprintf(w, "%sURL%s\t%s\n", keyColor, valueColor, pr.GetOrgURL(client.Config.Organization))
+	fmt.Fprintf(w, "%sReviews%s\n", keyColor, valueColor)
 
 	for _, vote := range pr.GetVotesInfo() {
 		color := "[white]"
@@ -144,7 +146,7 @@ func prToDetailsData(pr *azuredevops.PullRequestDetails) string {
 		fmt.Fprintf(w, "\t  \t%s\t%s%s[white]\n", vote.Reviewer, color, vote.Description)
 	}
 
-	fmt.Fprintf(w, "\nDescription\n")
+	fmt.Fprintf(w, "\n%sDescription%s\n", keyColor, valueColor)
 	fmt.Fprintf(w, "%s\n", normalizeDataString(pr.Description))
 
 	w.Flush()
