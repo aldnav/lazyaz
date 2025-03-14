@@ -347,7 +347,6 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 	}
 
-	// Create a search input field
 	closeSearch := func() {
 		searchMode = false
 		mainWindow.RemoveItem(searchInput)

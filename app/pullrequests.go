@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/aldnav/lazyaz/pkg/azuredevops"
@@ -109,6 +110,14 @@ func _redrawTable(table *tview.Table, prs []azuredevops.PullRequestDetails) {
 }
 
 func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) {
+	var prs []azuredevops.PullRequestDetails
+	// Add search-related variables
+	var searchText, previousSearchText string
+	var searchMode bool = false
+	var searchInput *tview.InputField
+	var searchMatches []struct{ row, col int }
+	var currentMatchIndex int = -1
+
 	table := tview.NewTable().
 		SetFixed(1, 1).
 		SetBorders(false).
@@ -127,10 +136,105 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		}
 	}
 
-	// Create a Flex layout that centers the logo and subtitle.
-	flex := tview.NewFlex().
+	mainWindow := tview.NewFlex().
+		SetDirection(tview.FlexRow)
+
+	tableFlex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(table, 0, 1, true)
+
+	// Actions specific for pull requests
+	actionsPanel := tview.NewFlex().
+		SetDirection(tview.FlexColumn)
+	searchStatus := tview.NewTextView().SetText("").SetTextAlign(tview.AlignRight)
+	actionsPanel.AddItem(searchStatus, 0, 1, false)
+
+	mainWindow.AddItem(tableFlex, 0, 1, true)
+	mainWindow.AddItem(actionsPanel, 1, 1, false)
+
+	// Handle search
+	closeSearch := func() {
+		searchMode = false
+		mainWindow.RemoveItem(searchInput)
+		app.SetFocus(table)
+	}
+
+	// Function to highlight the current match
+	highlightMatch := func() {
+		if currentMatchIndex >= 0 && currentMatchIndex < len(searchMatches) {
+			match := searchMatches[currentMatchIndex]
+
+			// Select the cell with the match
+			table.Select(match.row, match.col)
+
+			// Update the search input to show current match position - directly update instead of using QueueUpdateDraw
+			searchStatus.SetLabel(fmt.Sprintf("Match %d/%d",
+				currentMatchIndex+1, len(searchMatches)))
+		}
+	}
+
+	searchInput = tview.NewInputField().
+		SetLabel("/").
+		SetFieldWidth(30).
+		SetFieldTextColor(tcell.ColorGreen).
+		SetFieldBackgroundColor(tcell.ColorBlack).
+		SetDoneFunc(func(key tcell.Key) {
+			if key == tcell.KeyEnter {
+				// Perform search when Enter is pressed
+				searchText = strings.TrimSpace(searchInput.GetText())
+				if searchText == "" {
+					// Exit search mode if search text is empty
+					searchStatus.SetLabel("")
+					closeSearch()
+					return
+				}
+
+				if searchText == previousSearchText {
+					// Highlight next match (if any)
+					currentMatchIndex += 1
+				} else {
+					// Perform new search
+					searchMatches = nil
+					currentMatchIndex = -1
+					previousSearchText = searchText
+
+					// Search for the matches in the pull requests
+
+					for idx, pr := range prs {
+						// Search from the following:
+						// ID, Title, Status, Author, Created On, Approvals, Repository
+						if strings.Contains(strconv.Itoa(pr.ID), searchText) ||
+							strings.Contains(pr.Title, searchText) ||
+							strings.Contains(pr.Status, searchText) ||
+							strings.Contains(pr.Author, searchText) ||
+							strings.Contains(pr.CreatedDate.Format("2006-01-02"), searchText) ||
+							strings.Contains(pr.Repository, searchText) {
+							searchMatches = append(searchMatches, struct{ row, col int }{idx + 1, 0})
+						}
+					}
+
+					if len(searchMatches) > 0 {
+						// Highlight the first match
+						currentMatchIndex = 0
+					}
+				}
+
+				if currentMatchIndex >= len(searchMatches) {
+					currentMatchIndex = 0 // Wrap around
+				}
+
+				// Handle search results
+				if len(searchMatches) > 0 {
+					highlightMatch()
+				} else {
+					// Show "No matches" message
+					searchStatus.SetLabel("No matches!")
+				}
+				closeSearch()
+			} else if key == tcell.KeyEscape {
+				closeSearch()
+			}
+		})
 
 	// Load data
 	go func() {
@@ -140,7 +244,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		if err != nil {
 			log.Printf("Error fetching user profile: %v", err)
 		}
-		prs, err := client.GetPRsCreatedByUser(_activeUser.Mail, "")
+		prs, err = client.GetPRsCreatedByUser(_activeUser.Mail, "")
 		if err != nil {
 			log.Printf("Error fetching pull requests: %v", err)
 		}
@@ -157,5 +261,24 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		}
 	}()
 
-	return "Pull Requests", flex
+	mainWindow.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Handle search mode activation with "/"
+		if event.Rune() == '/' {
+			if !searchMode {
+				searchMode = true
+				searchInput.SetText(searchText)
+				searchInput.SetLabel("/")
+				mainWindow.AddItem(searchInput, 1, 0, false)
+				app.SetFocus(searchInput)
+				return nil
+			} else {
+				closeSearch()
+				return nil
+			}
+		}
+
+		return event
+	})
+
+	return "Pull Requests", mainWindow
 }
