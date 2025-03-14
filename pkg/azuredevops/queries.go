@@ -48,6 +48,8 @@ const jmespathPRDetailsQuery = `{` +
 	`"Merge Status": mergeStatus, ` +
 	`"Repository": repository.name, ` +
 	`"Repository URL": repository.webUrl, ` +
+	`"Repository ApiURL": repository.url, ` +
+	`"Project": repository.project.name, ` +
 	`"Reviewers": reviewers[].displayName, ` +
 	`"Reviewers Votes": reviewers[].vote, ` +
 	`"Source Ref Name": sourceRefName, ` +

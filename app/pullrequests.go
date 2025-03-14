@@ -115,16 +115,21 @@ func prToDetailsData(pr *azuredevops.PullRequestDetails) string {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.TabIndent)
 
-	fmt.Fprintf(w, "ID\t%d\n", pr.ID)
 	fmt.Fprintf(w, "Title\t%s\n", pr.Title)
-	fmt.Fprintf(w, "Status\t%s\n", pr.Status)
-	fmt.Fprintf(w, "Draft\t%s\n", strconv.FormatBool(pr.IsDraft))
-	fmt.Fprintf(w, "Merge Status\t%s\n", pr.MergeStatus)
-	fmt.Fprintf(w, "Creator\t%s\n", pr.Author)
+	fmt.Fprintf(w, "ID\t%d\n", pr.ID)
+	fmt.Fprintf(w, "Status\t%s\n", cases.Title(language.English).String(pr.Status))
+	fmt.Fprintf(w, "Draft\t%s\n", cases.Title(language.English).String(strconv.FormatBool(pr.IsDraft)))
+	fmt.Fprintf(w, "Merge Status\t%s\n", cases.Title(language.English).String(pr.MergeStatus))
+	if _isSameAsUser(pr.Author) {
+		fmt.Fprintf(w, "Creator\t%s\n", "[green]"+pr.Author+"[white]")
+	} else {
+		fmt.Fprintf(w, "Creator\t%s\n", pr.Author)
+	}
 	fmt.Fprintf(w, "Created On\t%s\n", pr.CreatedDate)
 	fmt.Fprintf(w, "Repository\t%s\n", pr.Repository)
 	fmt.Fprintf(w, "Source Branch\t%s\n", pr.GetShortBranchName())
 	fmt.Fprintf(w, "Target Branch\t%s\n", pr.GetShortTargetBranchName())
+	fmt.Fprintf(w, "URL\t%s\n", pr.GetOrgURL(client.Config.Organization))
 	fmt.Fprintf(w, "Reviews\n")
 
 	for _, vote := range pr.GetVotesInfo() {
@@ -209,7 +214,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 				Background(tcell.ColorYellow).
 				Foreground(tcell.ColorBlack),
 		).
-		SetOptions([]string{"Mine", "Assigned to me", "Completed", "Abandoned"}, nil)
+		SetOptions([]string{"Mine", "Assigned to me", "All", "Active", "Completed", "Abandoned"}, nil)
 	dropdown.SetCurrentOption(0)
 	searchStatus := tview.NewTextView().SetText("").SetTextAlign(tview.AlignRight)
 	actionsPanel.AddItem(dropdown, 0, 1, false)
@@ -358,17 +363,18 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 	dropdown.SetSelectedFunc(func(text string, index int) {
 		app.SetFocus(table)
 		var potentialPullRequestFilter string
-		var getPRsFunc func(string) ([]azuredevops.PullRequestDetails, error)
+		var getPRsFunc func() ([]azuredevops.PullRequestDetails, error)
 		switch text {
 		case "Mine":
 			potentialPullRequestFilter = "mine"
 		case "Assigned to me":
 			potentialPullRequestFilter = "assigned-to-me"
-			getPRsFunc = client.GetPRsAssignedToUser
-		// Mine and Active are the same?
-		// case "Active":
-		// 	potentialPullRequestFilter = "active"
-		// 	getPRsFunc = client.GetActivePRs
+		case "All":
+			potentialPullRequestFilter = "all"
+			getPRsFunc = client.GetAllPRs
+		case "Active":
+			potentialPullRequestFilter = "active"
+			getPRsFunc = client.GetActivePRs
 		case "Completed":
 			potentialPullRequestFilter = "completed"
 			getPRsFunc = client.GetCompletedPRs
@@ -394,10 +400,12 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		go func() {
 			dropdown.SetLabel("Fetching ")
 			var err error
-			if text == "Mine" {
+			if pullRequestFilter == "mine" {
 				prs, err = client.GetPRsCreatedByUser(_activeUser.Mail, "")
+			} else if pullRequestFilter == "assigned-to-me" {
+				prs, err = client.GetPRsAssignedToUser(_activeUser.Mail)
 			} else {
-				prs, err = getPRsFunc(_activeUser.Mail)
+				prs, err = getPRsFunc()
 			}
 			if err != nil {
 				log.Printf("Error fetching pull requests: %v", err)
@@ -413,6 +421,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 				})
 			} else {
 				app.QueueUpdateDraw(func() {
+					table.Clear()
 					table.SetCell(0, 0, tview.NewTableCell("No pull requests found").
 						SetTextColor(tcell.ColorRed).
 						SetAlign(tview.AlignCenter))

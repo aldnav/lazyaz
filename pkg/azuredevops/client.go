@@ -110,6 +110,8 @@ type PullRequestDetails struct {
 	MergeStatus         string      `json:"Merge Status"`
 	Repository          string      `json:"Repository"`
 	RepositoryURL       string      `json:"Repository URL"`
+	RepositoryApiURL    string      `json:"Repository ApiURL"`
+	Project             string      `json:"Project"`
 	Reviewers           []string    `json:"Reviewers"`
 	ReviewersVotes      []int       `json:"Reviewers Votes"`
 	SourceRefName       string      `json:"Source Ref Name"`
@@ -419,6 +421,12 @@ func (pr *PullRequestDetails) GetURL() string {
 	return fmt.Sprintf("%s/pullrequest/%d", pr.RepositoryURL, pr.ID)
 }
 
+// Get PR URL given organization
+// Used when RepositoryURL is not available
+func (pr *PullRequestDetails) GetOrgURL(organization string) string {
+	return fmt.Sprintf("%s%s/_git/%s/pullrequest/%d", organization, pr.Project, pr.Repository, pr.ID)
+}
+
 // Get number of approvals
 func (pr *PullRequestDetails) GetApprovals() int {
 	approvals := 0
@@ -534,7 +542,7 @@ func (c *Client) GetPRsCreatedByUser(user string, status string) ([]PullRequestD
 
 // Get PRs assigned to the current user
 func (c *Client) GetPRsAssignedToUser(user string) ([]PullRequestDetails, error) {
-	output, err := runAzCommand("repos", "pr", "list", "--include-links", "--reviewer", user, "--status", "active", "--top", "40", "--query", jmespathPRListsQuery, "--output", "json")
+	output, err := runAzCommand("repos", "pr", "list", "--include-links", "--reviewer", user, "--status", "active", "--top", "100", "--query", jmespathPRListsQuery, "--output", "json")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching PRs: %v", err)
 	}
@@ -548,14 +556,37 @@ func (c *Client) GetPRsAssignedToUser(user string) ([]PullRequestDetails, error)
 	return prs, nil
 }
 
-func (c *Client) GetActivePRs(user string) ([]PullRequestDetails, error) {
-	return c.GetPRsCreatedByUser(user, "active")
+func (c *Client) FetchPullRequestsByStatus(status string) ([]PullRequestDetails, error) {
+	if status != "" && !slices.Contains(PRStatuses, status) {
+		return nil, fmt.Errorf("invalid status: %s", status)
+	}
+	cmdParams := []string{"repos", "pr", "list", "--include-links", "--status", status, "--query", jmespathPRListsQuery, "--output", "json", "--top", "100"}
+	output, err := runAzCommand(cmdParams...)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching PRs: %v", err)
+	}
+
+	// Parse the output
+	var prs []PullRequestDetails
+	if err := json.Unmarshal(output, &prs); err != nil {
+		return nil, fmt.Errorf("error parsing PRs: %v", err)
+	}
+
+	return prs, nil
 }
 
-func (c *Client) GetCompletedPRs(user string) ([]PullRequestDetails, error) {
-	return c.GetPRsCreatedByUser(user, "completed")
+func (c *Client) GetAllPRs() ([]PullRequestDetails, error) {
+	return c.FetchPullRequestsByStatus("all")
 }
 
-func (c *Client) GetAbandonedPRs(user string) ([]PullRequestDetails, error) {
-	return c.GetPRsCreatedByUser(user, "abandoned")
+func (c *Client) GetActivePRs() ([]PullRequestDetails, error) {
+	return c.FetchPullRequestsByStatus("active")
+}
+
+func (c *Client) GetCompletedPRs() ([]PullRequestDetails, error) {
+	return c.FetchPullRequestsByStatus("completed")
+}
+
+func (c *Client) GetAbandonedPRs() ([]PullRequestDetails, error) {
+	return c.FetchPullRequestsByStatus("abandoned")
 }
