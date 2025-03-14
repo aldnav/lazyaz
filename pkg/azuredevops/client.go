@@ -119,6 +119,7 @@ type PullRequestDetails struct {
 	TargetRefName       string      `json:"Target Ref Name"`
 	Title               string      `json:"Title"`
 	WorkItemRefs        []string    `json:"Work Item Refs"`
+	IsDetailFetched     bool        `json:"-"`
 }
 
 type UserProfile struct {
@@ -485,8 +486,7 @@ func (pr *PullRequestDetails) GetVotesInfo() []VoteInfo {
 	return votes
 }
 
-// Retrieve PR details by PR ID
-func (c *Client) GetPRDetails(prID string) (*PullRequestDetails, error) {
+func _fetchPRDetails(prID string) (*PullRequestDetails, error) {
 	output, err := runAzCommand("repos", "pr", "show", "--id", prID, "--query", jmespathPRDetailsQuery, "--output", "json")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching PR details: %v", err)
@@ -497,8 +497,24 @@ func (c *Client) GetPRDetails(prID string) (*PullRequestDetails, error) {
 	if err := json.Unmarshal(output, &detail); err != nil {
 		return nil, fmt.Errorf("error parsing PR details: %v", err)
 	}
-
+	detail.IsDetailFetched = true
 	return &detail, nil
+}
+
+// Retrieve PR details by PR ID
+func (c *Client) GetPRDetails(prID string) (*PullRequestDetails, error) {
+	return _fetchPRDetails(prID)
+}
+
+// Retrieve more details from the Pull Request itself
+func (pr *PullRequestDetails) GetMorePRDetails() (*PullRequestDetails, error) {
+	_shallowPR, _ := _fetchPRDetails(strconv.Itoa(pr.ID))
+
+	pr.IsDetailFetched = true
+	pr.Description = _shallowPR.Description
+	pr.RepositoryURL = _shallowPR.RepositoryURL
+	pr.WorkItemRefs = _shallowPR.WorkItemRefs
+	return pr, nil
 }
 
 // Retrieve current user profile

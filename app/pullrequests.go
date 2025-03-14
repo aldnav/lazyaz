@@ -149,6 +149,12 @@ func prToDetailsData(pr *azuredevops.PullRequestDetails) string {
 	fmt.Fprintf(w, "\n%sDescription%s\n", keyColor, valueColor)
 	fmt.Fprintf(w, "%s\n", normalizeDataString(pr.Description))
 
+	if !pr.IsDetailFetched {
+		fmt.Fprintf(w, "%s\n", "[yellow]Loading...")
+	}
+
+	fmt.Fprintf(w, "\n%sWork Item References%s\t%s\n", keyColor, valueColor, strings.Join(pr.WorkItemRefs, ", "))
+
 	w.Flush()
 	return buf.String()
 }
@@ -158,6 +164,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 	var currentIndex int
 	// Details panel variables
 	var detailsVisible bool = false
+	var loadingPRID int
 	// Add search-related variables
 	var searchText, previousSearchText string
 	var searchMode bool = false
@@ -231,6 +238,20 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 			currentPullRequest := prs[index]
 			details := prToDetailsData(&currentPullRequest)
 			detailsPanel.SetText(details)
+
+			// Fetch more details from `az repos pr show --id <id>`
+			if !currentPullRequest.IsDetailFetched {
+				loadingPRID = currentPullRequest.ID
+				go func() {
+					prs[index].GetMorePRDetails()
+					app.QueueUpdateDraw(func() {
+						details := prToDetailsData(&prs[index])
+						if loadingPRID == currentPullRequest.ID {
+							detailsPanel.SetText(details)
+						}
+					})
+				}()
+			}
 		}
 	}
 
