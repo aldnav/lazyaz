@@ -534,7 +534,7 @@ func (c *Client) GetPRsCreatedByUser(user string, status string) ([]PullRequestD
 
 // Get PRs assigned to the current user
 func (c *Client) GetPRsAssignedToUser(user string) ([]PullRequestDetails, error) {
-	output, err := runAzCommand("repos", "pr", "list", "--include-links", "--reviewer", user, "--status", "active", "--top", "20", "--query", jmespathPRListsQuery, "--output", "json")
+	output, err := runAzCommand("repos", "pr", "list", "--include-links", "--reviewer", user, "--status", "active", "--top", "40", "--query", jmespathPRListsQuery, "--output", "json")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching PRs: %v", err)
 	}
@@ -548,14 +548,14 @@ func (c *Client) GetPRsAssignedToUser(user string) ([]PullRequestDetails, error)
 	return prs, nil
 }
 
-func (c *Client) GetActivePRs() ([]PullRequestDetails, error) {
-	return c.GetPRsCreatedByUser("", "active")
+func (c *Client) GetActivePRs(user string) ([]PullRequestDetails, error) {
+	return c.GetPRsCreatedByUser(user, "active")
 }
 
-func (c *Client) GetCompletedPRs() ([]PullRequestDetails, error) {
-	return c.GetPRsCreatedByUser("", "completed")
+func (c *Client) GetCompletedPRs(user string) ([]PullRequestDetails, error) {
+	return c.GetPRsCreatedByUser(user, "completed")
 }
 
-func (c *Client) GetAbandonedPRs() ([]PullRequestDetails, error) {
-	return c.GetPRsCreatedByUser("", "abandoned")
+func (c *Client) GetAbandonedPRs(user string) ([]PullRequestDetails, error) {
+	return c.GetPRsCreatedByUser(user, "abandoned")
 }

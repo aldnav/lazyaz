@@ -117,6 +117,8 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 	var searchInput *tview.InputField
 	var searchMatches []struct{ row, col int }
 	var currentMatchIndex int = -1
+	// Dropdown variables
+	var pullRequestFilter string
 
 	table := tview.NewTable().
 		SetFixed(1, 1).
@@ -146,7 +148,21 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 	// Actions specific for pull requests
 	actionsPanel := tview.NewFlex().
 		SetDirection(tview.FlexColumn)
+	dropdown := tview.NewDropDown().
+		SetFieldBackgroundColor(tcell.ColorBlack).
+		SetFieldTextColor(tcell.ColorWhite).
+		SetListStyles(
+			tcell.StyleDefault.
+				Background(tcell.ColorBlack).
+				Foreground(tcell.ColorWhite),
+			tcell.StyleDefault.
+				Background(tcell.ColorYellow).
+				Foreground(tcell.ColorBlack),
+		).
+		SetOptions([]string{"Mine", "Assigned to me", "Completed", "Abandoned"}, nil)
+	dropdown.SetCurrentOption(0)
 	searchStatus := tview.NewTextView().SetText("").SetTextAlign(tview.AlignRight)
+	actionsPanel.AddItem(dropdown, 0, 1, false)
 	actionsPanel.AddItem(searchStatus, 0, 1, false)
 
 	mainWindow.AddItem(tableFlex, 0, 1, true)
@@ -236,6 +252,74 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 			}
 		})
 
+	// Handle dropdown selection of Pull Requests
+	dropdown.SetSelectedFunc(func(text string, index int) {
+		app.SetFocus(table)
+		var potentialPullRequestFilter string
+		var getPRsFunc func(string) ([]azuredevops.PullRequestDetails, error)
+		switch text {
+		case "Mine":
+			potentialPullRequestFilter = "mine"
+		case "Assigned to me":
+			potentialPullRequestFilter = "assigned-to-me"
+			getPRsFunc = client.GetPRsAssignedToUser
+		// Mine and Active are the same?
+		// case "Active":
+		// 	potentialPullRequestFilter = "active"
+		// 	getPRsFunc = client.GetActivePRs
+		case "Completed":
+			potentialPullRequestFilter = "completed"
+			getPRsFunc = client.GetCompletedPRs
+		case "Abandoned":
+			potentialPullRequestFilter = "abandoned"
+			getPRsFunc = client.GetAbandonedPRs
+		}
+		if potentialPullRequestFilter != pullRequestFilter {
+			pullRequestFilter = potentialPullRequestFilter
+		} else {
+			return
+		}
+
+		// Reset search variables
+		searchText = ""
+		previousSearchText = ""
+		searchMode = false
+		searchStatus.SetLabel("")
+		searchMatches = nil
+		currentMatchIndex = -1
+
+		// Refresh the pull requests
+		go func() {
+			dropdown.SetLabel("Fetching ")
+			var err error
+			if text == "Mine" {
+				prs, err = client.GetPRsCreatedByUser(_activeUser.Mail, "")
+			} else {
+				prs, err = getPRsFunc(_activeUser.Mail)
+			}
+			if err != nil {
+				log.Printf("Error fetching pull requests: %v", err)
+			}
+			if len(prs) > 0 {
+				app.QueueUpdateDraw(func() {
+					dropdown.SetLabel("")
+					// currentIndex = 0
+					_redrawTable(table, prs)
+					// closeDetailPanel()
+					app.SetFocus(table)
+					table.Select(0, 0)
+				})
+			} else {
+				app.QueueUpdateDraw(func() {
+					table.SetCell(0, 0, tview.NewTableCell("No pull requests found").
+						SetTextColor(tcell.ColorRed).
+						SetAlign(tview.AlignCenter))
+					app.SetFocus(table)
+				})
+			}
+		}()
+	})
+
 	// Load data
 	go func() {
 		// Get current user
@@ -277,6 +361,11 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 			}
 		}
 
+		// Handle '\' key to activate dropdown
+		if event.Rune() == '\\' {
+			app.SetFocus(dropdown)
+			return nil
+		}
 		return event
 	})
 
