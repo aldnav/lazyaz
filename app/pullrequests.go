@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/aldnav/lazyaz/pkg/azuredevops"
 	"github.com/gdamore/tcell/v2"
@@ -109,8 +111,47 @@ func _redrawTable(table *tview.Table, prs []azuredevops.PullRequestDetails) {
 	table.Select(0, 0)
 }
 
+func prToDetailsData(pr *azuredevops.PullRequestDetails) string {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.TabIndent)
+
+	fmt.Fprintf(w, "ID\t%d\n", pr.ID)
+	fmt.Fprintf(w, "Title\t%s\n", pr.Title)
+	fmt.Fprintf(w, "Status\t%s\n", pr.Status)
+	fmt.Fprintf(w, "Draft\t%s\n", strconv.FormatBool(pr.IsDraft))
+	fmt.Fprintf(w, "Merge Status\t%s\n", pr.MergeStatus)
+	fmt.Fprintf(w, "Creator\t%s\n", pr.Author)
+	fmt.Fprintf(w, "Created On\t%s\n", pr.CreatedDate)
+	fmt.Fprintf(w, "Repository\t%s\n", pr.Repository)
+	fmt.Fprintf(w, "Source Branch\t%s\n", pr.GetShortBranchName())
+	fmt.Fprintf(w, "Target Branch\t%s\n", pr.GetShortTargetBranchName())
+	fmt.Fprintf(w, "Reviews\n")
+
+	for _, vote := range pr.GetVotesInfo() {
+		color := "[white]"
+		if vote.Description == "approved" || vote.Description == "approved with suggestions" {
+			color = "[green]"
+		} else if vote.Description == "waiting for author" {
+			color = "[yellow]"
+		} else if vote.Description == "rejected" {
+			color = "[red]"
+		}
+		fmt.Fprintf(w, "\t  \t%s\t%s%s[white]\n", vote.Reviewer, color, vote.Description)
+	}
+
+	fmt.Fprintf(w, "\nDescription\n")
+	fmt.Fprintf(w, "%s\n", normalizeDataString(pr.Description))
+
+	w.Flush()
+	return buf.String()
+}
+
 func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) {
 	var prs []azuredevops.PullRequestDetails
+	var currentIndex int
+	// Details panel variables
+	var detailsVisible bool = false
+	var activePanel string
 	// Add search-related variables
 	var searchText, previousSearchText string
 	var searchMode bool = false
@@ -142,8 +183,17 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		SetDirection(tview.FlexRow)
 
 	tableFlex := tview.NewFlex().
-		SetDirection(tview.FlexRow).
+		SetDirection(tview.FlexColumn).
 		AddItem(table, 0, 1, true)
+
+	// Create a details panel
+	detailsPanel := tview.NewTextView().
+		SetScrollable(true).
+		SetWordWrap(true)
+	detailsPanel.
+		SetDynamicColors(true).
+		SetBorder(true).
+		SetTitle(" Pull Request ")
 
 	// Actions specific for pull requests
 	actionsPanel := tview.NewFlex().
@@ -167,6 +217,58 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 
 	mainWindow.AddItem(tableFlex, 0, 1, true)
 	mainWindow.AddItem(actionsPanel, 1, 1, false)
+
+	// Handle table enter key (View Pull Request details)
+
+	displayPullRequestDetails := func(prs []azuredevops.PullRequestDetails, index int) {
+		if index >= 0 && index < len(prs) {
+			currentPullRequest := prs[index]
+			details := prToDetailsData(&currentPullRequest)
+			detailsPanel.SetText(details)
+		}
+	}
+
+	displayCurrentPullRequestDetails := func() {
+		displayPullRequestDetails(prs, currentIndex)
+	}
+
+	// When the table highlight is changed
+	table.SetSelectionChangedFunc(func(row, column int) {
+		currentIndex = row - 1
+		if currentIndex < 0 {
+			currentIndex = 0
+		}
+		if detailsVisible {
+			detailsPanel.SetText("")
+			displayPullRequestDetails(prs, currentIndex)
+		}
+	})
+
+	closeDetailPanel := func() {
+		// Release active panel for keyboard context
+		activePanel = ""
+		// Hide details
+		tableFlex.RemoveItem(detailsPanel)
+		detailsVisible = false
+		detailsPanel.SetText("")
+	}
+
+	toggleDetailsPanel := func() {
+		if detailsVisible {
+			closeDetailPanel()
+		} else {
+			// Set active panel for keyboard context
+			activePanel = "details"
+			// Show details
+			tableFlex.AddItem(detailsPanel, 0, 1, false)
+			detailsVisible = true
+			displayCurrentPullRequestDetails()
+		}
+	}
+
+	table.SetSelectedFunc(func(row, column int) {
+		toggleDetailsPanel()
+	})
 
 	// Handle search
 	closeSearch := func() {
@@ -359,6 +461,12 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 				closeSearch()
 				return nil
 			}
+		}
+
+		// Handle 'q' key to close details panel
+		if activePanel == "details" && (event.Rune() == 'q') {
+			closeDetailPanel()
+			return nil
 		}
 
 		// Handle '\' key to activate dropdown
