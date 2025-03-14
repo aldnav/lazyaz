@@ -6,47 +6,37 @@ A terminal-based UI application for interacting with Azure DevOps, built with Go
 
 LazyAZ provides a convenient terminal interface to interact with Azure DevOps services. It allows you to:
 
-- View Azure DevOps projects
-- Navigate through project resources 
-- Perform common Azure DevOps operations from your terminal
+- View work items
+- View pull requests
 
 ## Prerequisites
 
-- Go 1.16 or higher
 - Azure DevOps account
 - Azure CLI installed with the Azure DevOps extension
 
-## Setup
+## Development Setup
 
 1. Clone the repository:
-   ```
+
+   ```bash
    git clone https://github.com/aldnav/lazyaz.git
    cd lazyaz
    ```
 
 2. Install dependencies:
-   ```
+
+   ```bash
    go mod download
    ```
 
 ## Authentication
 
-LazyAZ now uses Azure CLI for authentication instead of a personal access token. Make sure you have logged in with Azure CLI before using the application:
+Make sure you have logged in with Azure CLI before using the application:
 
 ```bash
 az login
 az devops configure --defaults organization=https://dev.azure.com/your-organization
 ```
-
-You can also set a default project in the Azure DevOps configuration file:
-
-```
-[defaults]
-organization = your-org-name
-project = your-project-name
-```
-
-This configuration is stored in `~/.azure/azuredevops/config`.
 
 ### Environment Variables
 
