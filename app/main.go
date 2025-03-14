@@ -87,7 +87,8 @@ func main() {
 
 	// Shortcuts to navigate between slides
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEscape || (event.Rune() == 'q' && activePanel == "") {
+		// TODO Enable "q" to stop the application
+		if event.Key() == tcell.KeyEscape {
 			app.Stop()
 		} else if event.Rune() == ']' {
 			nextSlide()

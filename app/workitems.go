@@ -70,7 +70,7 @@ func redrawTable(table *tview.Table, workItems []azuredevops.WorkItem) {
 
 			// "Assigned to" column
 			if column == 3 && row > 0 {
-				if row-1 < len(workItems) && curWorkItem.IsAssignedToUser(activeUser) {
+				if row-1 < len(workItems) && activeUser != nil && curWorkItem.IsAssignedToUser(activeUser) {
 					color = tcell.ColorLimeGreen
 				} else {
 					color = tcell.ColorWhite
@@ -572,7 +572,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 
 		// Handle 'q' key to close details panel
-		if activePanel == "details" && (event.Rune() == 'q') {
+		if activePanel == "details" && event.Rune() == 'q' && !searchMode {
 			closeDetailPanel()
 			return nil
 		}

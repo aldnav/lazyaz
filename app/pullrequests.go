@@ -156,7 +156,6 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 	var currentIndex int
 	// Details panel variables
 	var detailsVisible bool = false
-	var activePanel string
 	// Add search-related variables
 	var searchText, previousSearchText string
 	var searchMode bool = false
@@ -473,7 +472,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		}
 
 		// Handle 'q' key to close details panel
-		if activePanel == "details" && (event.Rune() == 'q') {
+		if activePanel == "details" && event.Rune() == 'q' && !searchMode {
 			closeDetailPanel()
 			return nil
 		}
