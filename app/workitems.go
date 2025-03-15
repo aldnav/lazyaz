@@ -11,14 +11,12 @@ import (
 	"github.com/aldnav/lazyaz/pkg/azuredevops"
 	"github.com/gdamore/tcell/v2"
 	strip "github.com/grokify/html-strip-tags-go"
-	"github.com/microcosm-cc/bluemonday"
 	"github.com/rivo/tview"
 )
 
 const tableData = `ID|Work Item Type|Created On|Assigned To|State|Title
 0|Fetching work items...|Loading...|Loading...|Loading...|Loading...`
 
-var p = bluemonday.UGCPolicy()
 var _project string
 var _organization string
 
