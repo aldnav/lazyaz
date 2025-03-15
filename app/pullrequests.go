@@ -349,9 +349,9 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 						// Search from the following:
 						// ID, Title, Status, Author, Created On, Approvals, Repository
 						if strings.Contains(strconv.Itoa(pr.ID), searchText) ||
-							strings.Contains(pr.Title, searchText) ||
-							strings.Contains(pr.Status, searchText) ||
-							strings.Contains(pr.Author, searchText) ||
+							strings.Contains(strings.ToLower(pr.Title), strings.ToLower(searchText)) ||
+							strings.Contains(strings.ToLower(pr.Status), strings.ToLower(searchText)) ||
+							strings.Contains(strings.ToLower(pr.Author), strings.ToLower(searchText)) ||
 							strings.Contains(pr.CreatedDate.Format("2006-01-02"), searchText) ||
 							strings.Contains(pr.Repository, searchText) {
 							searchMatches = append(searchMatches, struct{ row, col int }{idx + 1, 0})
