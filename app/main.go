@@ -17,7 +17,10 @@ type Slide func(nextSlide func()) (title string, content tview.Primitive)
 var app = tview.NewApplication()
 var activePanel string
 var client *azuredevops.Client
+
 var activeUser *azuredevops.UserProfile
+var userProfileErr error
+
 var localTzLocation *time.Location
 
 func main() {
@@ -32,6 +35,20 @@ func main() {
 		localTzLocation = time.UTC
 	} else {
 		log.Printf("Using local timezone: %v\n", localTzLocation)
+	}
+
+	// Integrate with Azure DevOps early on init
+	config, configErr := azuredevops.NewConfig()
+	if configErr != nil {
+		log.Printf("Configuration error: %v", configErr)
+	}
+	_organization = config.Organization
+	_project = config.Project
+	client = azuredevops.NewClient(config)
+	// Get current user
+	activeUser, userProfileErr = client.GetUserProfile()
+	if userProfileErr != nil {
+		log.Printf("Error fetching user profile: %v", userProfileErr)
 	}
 
 	slides := []Slide{
@@ -113,30 +130,13 @@ func main() {
 	})
 	app.EnableMouse(true)
 
-	// Integrate with Azure DevOps
-	go func() {
-		config, err := azuredevops.NewConfig()
-		if err != nil {
-			log.Printf("Configuration error: %v", err)
-		}
-		_organization = config.Organization
-		_project = config.Project
-		client = azuredevops.NewClient(config)
-		// Get current user
-		activeUser, err = client.GetUserProfile()
-		if err != nil {
-			log.Printf("Error fetching user profile: %v", err)
-		}
-		if err != nil {
-			log.Printf("Error fetching work items: %v", err)
-			connectionStatus.SetText("Error connecting to Azure DevOps: Inspect logs for more details.")
-		} else {
-			app.QueueUpdateDraw(func() {
-				connectionStatus.SetText(fmt.Sprintf("✅ Connected to %s ", _organization))
-				connectionStatus.SetTextColor(tcell.ColorGreen)
-			})
-		}
-	}()
+	if configErr != nil && userProfileErr != nil {
+		connectionStatus.SetText("🚨 Error connecting to Azure DevOps: Inspect logs for more details.")
+		connectionStatus.SetTextColor(tcell.ColorRed)
+	} else {
+		connectionStatus.SetText(fmt.Sprintf("✅ Connected to %s ", _organization))
+		connectionStatus.SetTextColor(tcell.ColorGreen)
+	}
 
 	// Creating the main layout
 	layout := tview.NewFlex().

@@ -19,8 +19,6 @@ const prTableData = `ID|Title|Status|Merge status|Creator|Created On|Approvals|R
 1|Loading...|Loading...|Loading...|Loading...|Loading...|Loading...|Loading...
 `
 
-var _activeUser *azuredevops.UserProfile
-
 func _prsToTableData(prs []azuredevops.PullRequestDetails) string {
 	tableData := "ID|Title|Status|Merge Status|Creator|Created On|Approvals|Repository\n"
 	for i, pr := range prs {
@@ -44,7 +42,7 @@ func _prsToTableData(prs []azuredevops.PullRequestDetails) string {
 
 // TODO Move to utilities
 func _isSameAsUser(name string) bool {
-	return name == _activeUser.DisplayName || name == _activeUser.Username
+	return name == activeUser.DisplayName || name == activeUser.Username
 }
 
 func _redrawTable(table *tview.Table, prs []azuredevops.PullRequestDetails) {
@@ -423,9 +421,9 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 			dropdown.SetLabel("Fetching ")
 			var err error
 			if pullRequestFilter == "mine" {
-				prs, err = client.GetPRsCreatedByUser(_activeUser.Mail, "")
+				prs, err = client.GetPRsCreatedByUser(activeUser.Mail, "")
 			} else if pullRequestFilter == "assigned-to-me" {
-				prs, err = client.GetPRsAssignedToUser(_activeUser.Mail)
+				prs, err = client.GetPRsAssignedToUser(activeUser.Mail)
 			} else {
 				prs, err = getPRsFunc()
 			}
@@ -443,6 +441,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 				})
 			} else {
 				app.QueueUpdateDraw(func() {
+					dropdown.SetLabel("")
 					table.Clear()
 					table.SetCell(0, 0, tview.NewTableCell("No pull requests found. Try other filters (press \\ and Up or Down)").
 						SetTextColor(tcell.ColorRed).
@@ -455,13 +454,8 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 
 	// Load data
 	go func() {
-		// Get current user
 		var err error
-		_activeUser, err = client.GetUserProfile()
-		if err != nil {
-			log.Printf("Error fetching user profile: %v", err)
-		}
-		prs, err = client.GetPRsCreatedByUser(_activeUser.Mail, "")
+		prs, err = client.GetPRsCreatedByUser(activeUser.Mail, "")
 		if err != nil {
 			log.Printf("Error fetching pull requests: %v", err)
 		}
