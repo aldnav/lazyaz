@@ -243,12 +243,17 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 				}
 				fmt.Fprintf(w, "\t  %sURL%s\t%s\n", keyColor, valueColor, pr.GetURL())
 				fmt.Fprintf(w, "\t  %sCreated Date%s\t%s\n", keyColor, valueColor, pr.CreatedDate)
-				if isSameAsUser(pr.ClosedBy) {
-					fmt.Fprintf(w, "\t  %sClosed By%s\t[green]%s[white]\n", keyColor, valueColor, pr.ClosedBy)
+				if pr.ClosedBy != "" {
+					if isSameAsUser(pr.ClosedBy) {
+						fmt.Fprintf(w, "\t  %sClosed By%s\t[green]%s[white]\n", keyColor, valueColor, pr.ClosedBy)
+					} else {
+						fmt.Fprintf(w, "\t  %sClosed By%s\t%s\n", keyColor, valueColor, pr.ClosedBy)
+					}
+					fmt.Fprintf(w, "\t  %sClosed Date%s\t%s\n", keyColor, valueColor, pr.ClosedDate)
 				} else {
-					fmt.Fprintf(w, "\t  %sClosed By%s\t%s\n", keyColor, valueColor, pr.ClosedBy)
+					fmt.Fprintf(w, "\t  %sClosed By%s\t-\n", keyColor, valueColor)
+					fmt.Fprintf(w, "\t  %sClosed Date%s\t-\n", keyColor, valueColor)
 				}
-				fmt.Fprintf(w, "\t  %sClosed Date%s\t%s\n", keyColor, valueColor, pr.ClosedDate)
 				fmt.Fprintf(w, "\t  %sFrom branch%s\t%s\n", keyColor, valueColor, pr.SourceRefName)
 				fmt.Fprintf(w, "\t  %sTo branch%s\t%s\n", keyColor, valueColor, pr.TargetRefName)
 				votesInfo := pr.GetVotesInfo()
