@@ -79,12 +79,6 @@ func main() {
 		AddItem(info, 0, 1, false).
 		AddItem(connectionStatus, 0, 1, false)
 
-	// Creating the main layout
-	layout := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(pages, 0, 1, true).
-		AddItem(infoBar, 1, 1, false)
-
 	// Shortcuts to navigate between slides
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// TODO Enable "q" to stop the application
@@ -131,6 +125,12 @@ func main() {
 			log.Printf("Error fetching user profile: %v", err)
 		}
 	}()
+
+	// Creating the main layout
+	layout := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(pages, 0, 1, true).
+		AddItem(infoBar, 1, 1, false)
 
 	// Start the application.
 	if err := app.SetRoot(layout, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
