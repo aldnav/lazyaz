@@ -25,13 +25,46 @@ var _organization string
 func workItemsToTableData(workItems []azuredevops.WorkItem) string {
 	tableData := "ID|Work Item Type|Created On|Assigned To|State|Title\n"
 	for i, workItem := range workItems {
-		tableData += fmt.Sprintf("%d|%s|%s|%s|%s|%s", workItem.ID, workItem.WorkItemType, workItem.CreatedDate, workItem.AssignedTo, workItem.State, strings.ReplaceAll(workItem.Title, "|", ""))
+		tableData += fmt.Sprintf("%d|%s|%s|%s|%s|%s", workItem.ID, workItem.WorkItemType, workItem.CreatedDate.In(localTzLocation).Format("2006-01-02 03:04 PM -0700"), workItem.AssignedTo, workItem.State, strings.ReplaceAll(workItem.Title, "|", ""))
 		// Add newline only if it's not the last item
 		if i < len(workItems)-1 {
 			tableData += "\n"
 		}
 	}
 	return tableData
+}
+
+var _typeColors = map[string]tcell.Color{
+	"Epic":                 tcell.ColorOrange,
+	"Feature":              tcell.ColorViolet,
+	"User Story":           tcell.ColorTeal,
+	"Bug":                  tcell.ColorRed,
+	"Task":                 tcell.ColorYellow,
+	"Issue":                tcell.ColorDarkGreen,
+	"Product Backlog Item": tcell.ColorLightBlue,
+	"Requirement":          tcell.ColorLightBlue,
+	"Impediment":           tcell.ColorLightSeaGreen,
+	// Some custom types are supported
+	"Script":     tcell.ColorOrange,
+	"Test Case":  tcell.ColorLightPink,
+	"Test Suite": tcell.ColorLightPink,
+}
+
+var _stateColors = map[string]tcell.Color{
+	"To Do":             tcell.ColorBlue,
+	"New":               tcell.ColorBlue,
+	"Code Review":       tcell.ColorBlue,
+	"Development":       tcell.ColorBlue,
+	"In Progress":       tcell.ColorYellow,
+	"Done":              tcell.ColorGreen,
+	"ICR":               tcell.ColorGreen,
+	"Closed":            tcell.ColorGreen,
+	"Pending":           tcell.ColorOrange,
+	"Awaiting Decision": tcell.ColorOrange,
+	"On Hold":           tcell.ColorOrange,
+	"Acceptance":        tcell.ColorOrange,
+	"Ready for test":    tcell.ColorRed,
+	"Test":              tcell.ColorRed,
 }
 
 func redrawTable(table *tview.Table, workItems []azuredevops.WorkItem) {
@@ -53,18 +86,18 @@ func redrawTable(table *tview.Table, workItems []azuredevops.WorkItem) {
 			if column == 0 && row > 0 {
 				color = tcell.ColorRed
 			}
+			// Work item type column
+			if column == 1 {
+				color = tcell.ColorWhite
+				if _, ok := _typeColors[cell]; ok {
+					color = _typeColors[cell]
+				}
+			}
 			// State column
 			if column == 4 {
-				if cell == "To Do" || cell == "New" || cell == "Code Review" || cell == "Development" {
-					color = tcell.ColorBlue
-				} else if cell == "In Progress" {
-					color = tcell.ColorYellow
-				} else if cell == "Done" || cell == "ICR" || cell == "Closed" {
-					color = tcell.ColorGreen
-				} else if strings.Contains(cell, "Pending") || strings.Contains(cell, "Awaiting Decision") || cell == "On Hold" || cell == "Acceptance" {
-					color = tcell.ColorOrange
-				} else if cell == "Ready for test" || cell == "Test" {
-					color = tcell.ColorRed
+				color = tcell.ColorWhite
+				if _, ok := _stateColors[cell]; ok {
+					color = _stateColors[cell]
 				}
 			}
 

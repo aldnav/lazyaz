@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/aldnav/lazyaz/pkg/azuredevops"
 	"github.com/gdamore/tcell/v2"
@@ -17,11 +18,21 @@ var app = tview.NewApplication()
 var activePanel string
 var client *azuredevops.Client
 var activeUser *azuredevops.UserProfile
+var localTzLocation *time.Location
 
 func main() {
 	log.SetOutput(os.Stderr)
 	log.SetPrefix("[lazyaz] ")
 	log.Println("Application starting...")
+	var err error
+	localTzLocation, err = time.LoadLocation("Local")
+	if err != nil {
+		log.Printf("Error loading local timezone: %v\n", err)
+		log.Println("Using UTC")
+		localTzLocation = time.UTC
+	} else {
+		log.Printf("Using local timezone: %v\n", localTzLocation)
+	}
 
 	slides := []Slide{
 		WorkItemsPage,
