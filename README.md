@@ -36,7 +36,10 @@ Make sure you have logged in with Azure CLI before using the application:
 ```bash
 az login
 az devops configure --defaults organization=https://dev.azure.com/your-organization
+az devops configure --defaults project=your-project
 ```
+
+Reference to `az cli` : <https://learn.microsoft.com/en-us/azure/devops/cli/log-in-via-pat?view=azure-devops&tabs=windows>
 
 ### Environment Variables
 
