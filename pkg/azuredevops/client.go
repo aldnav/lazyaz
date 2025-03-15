@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -128,6 +129,7 @@ type UserProfile struct {
 	Mail        string `json:"mail"`
 	GivenName   string `json:"givenName"`
 	Surname     string `json:"surname"`
+	Username    string `json:"-"` // Without the email domain
 }
 
 // NewConfig creates a new Config, first trying to read from config file, then falling back to environment variables
@@ -530,6 +532,25 @@ func (c *Client) GetUserProfile() (*UserProfile, error) {
 		return nil, fmt.Errorf("error parsing user profile: %v", err)
 	}
 
+	if profile.Mail == "" {
+		log.Println("[WARNING] User profile is empty from the ActiveDirectory profile! This is required for most operations. Please contact the administrator to fix this or setup your profile.")
+		log.Println("Trying to fetch from the command: ")
+		var _query = `user.name`
+		log.Println("az account show --query " + _query + " --output tsv")
+		output, err = runAzCommand("account", "show", "--query", _query, "--output", "tsv")
+		if err != nil {
+			log.Println("[ERROR] Failed to fetch user profile from az account show command")
+		} else if len(output) > 0 {
+			profile.Mail = strings.TrimSuffix(string(output), "\n")
+			profile.Username = strings.Split(profile.Mail, "@")[0]
+		}
+	}
+
+	if profile.Mail == "" {
+		log.Println("[WARNING] User profile is empty! This is required for most operations. Please contact the administrator to fix this or setup your profile.")
+		return nil, fmt.Errorf("cannot continue without a user profile mail")
+	}
+
 	return &profile, nil
 }
 
@@ -538,6 +559,9 @@ var PRStatuses = []string{"active", "abandoned", "completed", "all"}
 
 // Get PRs created by the current user (by default these are opened PRs)
 func (c *Client) GetPRsCreatedByUser(user string, status string) ([]PullRequestDetails, error) {
+	if user == "" {
+		return nil, fmt.Errorf("user is required")
+	}
 	cmdParams := []string{"repos", "pr", "list", "--include-links", "--creator", user, "--query", jmespathPRListsQuery, "--output", "json"}
 	if status != "" && slices.Contains(PRStatuses, status) {
 		cmdParams = append(cmdParams, "--status", status)
@@ -558,6 +582,9 @@ func (c *Client) GetPRsCreatedByUser(user string, status string) ([]PullRequestD
 
 // Get PRs assigned to the current user
 func (c *Client) GetPRsAssignedToUser(user string) ([]PullRequestDetails, error) {
+	if user == "" {
+		return nil, fmt.Errorf("user is required")
+	}
 	output, err := runAzCommand("repos", "pr", "list", "--include-links", "--reviewer", user, "--status", "active", "--top", "100", "--query", jmespathPRListsQuery, "--output", "json")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching PRs: %v", err)

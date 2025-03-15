@@ -144,7 +144,7 @@ func normalizeDataString(data string) string {
 }
 
 func isSameAsUser(name string) bool {
-	return name == activeUser.DisplayName
+	return name == activeUser.DisplayName || name == activeUser.Username
 }
 
 func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
@@ -585,7 +585,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			} else {
 				app.QueueUpdateDraw(func() {
 					dropdown.SetLabel("")
-					table.SetCell(0, 0, tview.NewTableCell("No work items found").
+					table.SetCell(0, 0, tview.NewTableCell("No work items found. Try other filters (press \\ and Up or Down)").
 						SetTextColor(tcell.ColorRed).
 						SetAlign(tview.AlignCenter))
 					app.SetFocus(table)
@@ -640,7 +640,8 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			})
 		} else {
 			app.QueueUpdateDraw(func() {
-				table.SetCell(0, 0, tview.NewTableCell("No work items found").
+				table.Clear()
+				table.SetCell(0, 0, tview.NewTableCell("No work items found. Try other filters (press \\ and Up or Down)").
 					SetTextColor(tcell.ColorRed).
 					SetAlign(tview.AlignCenter))
 			})

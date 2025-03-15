@@ -44,7 +44,7 @@ func _prsToTableData(prs []azuredevops.PullRequestDetails) string {
 
 // TODO Move to utilities
 func _isSameAsUser(name string) bool {
-	return name == _activeUser.DisplayName
+	return name == _activeUser.DisplayName || name == _activeUser.Username
 }
 
 func _redrawTable(table *tview.Table, prs []azuredevops.PullRequestDetails) {
@@ -444,7 +444,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 			} else {
 				app.QueueUpdateDraw(func() {
 					table.Clear()
-					table.SetCell(0, 0, tview.NewTableCell("No pull requests found").
+					table.SetCell(0, 0, tview.NewTableCell("No pull requests found. Try other filters (press \\ and Up or Down)").
 						SetTextColor(tcell.ColorRed).
 						SetAlign(tview.AlignCenter))
 					app.SetFocus(table)
@@ -471,7 +471,8 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 			})
 		} else {
 			app.QueueUpdateDraw(func() {
-				table.SetCell(0, 0, tview.NewTableCell("No pull requests found").
+				table.Clear()
+				table.SetCell(0, 0, tview.NewTableCell("No pull requests found. Try other filters (press \\ and Up or Down)").
 					SetTextColor(tcell.ColorRed).
 					SetAlign(tview.AlignCenter))
 			})

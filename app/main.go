@@ -122,6 +122,11 @@ func main() {
 		_organization = config.Organization
 		_project = config.Project
 		client = azuredevops.NewClient(config)
+		// Get current user
+		activeUser, err = client.GetUserProfile()
+		if err != nil {
+			log.Printf("Error fetching user profile: %v", err)
+		}
 		if err != nil {
 			log.Printf("Error fetching work items: %v", err)
 			connectionStatus.SetText("Error connecting to Azure DevOps: Inspect logs for more details.")
@@ -130,11 +135,6 @@ func main() {
 				connectionStatus.SetText(fmt.Sprintf("✅ Connected to %s ", _organization))
 				connectionStatus.SetTextColor(tcell.ColorGreen)
 			})
-		}
-		// Get current user
-		activeUser, err = client.GetUserProfile()
-		if err != nil {
-			log.Printf("Error fetching user profile: %v", err)
 		}
 	}()
 
