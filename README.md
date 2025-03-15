@@ -2,6 +2,8 @@
 
 A terminal-based UI application for interacting with Azure DevOps, built with Go.
 
+[![Lazyaz demo](lazyazdemoscreen.png)](https://vimeo.com/1066217264/acd0fb1d6b "Lazyaz demo - Click to Watch!")
+
 ## Overview
 
 LazyAZ provides a convenient terminal interface to interact with Azure DevOps services. It allows you to:
