@@ -16,7 +16,7 @@ import (
 )
 
 const tableData = `ID|Work Item Type|Created On|Assigned To|State|Title
-0|Fetching work items...|-|-|-|-`
+0|Fetching work items...|Loading...|Loading...|Loading...|Loading...`
 
 var p = bluemonday.UGCPolicy()
 var _project string
@@ -138,9 +138,9 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 		fmt.Fprintf(w, "%sPriority%s\t%d\n", keyColor, valueColor, workItem.Details.Priority)
 		fmt.Fprintf(w, "%sSeverity%s\t%s\n", keyColor, valueColor, workItem.Details.Severity)
 	} else {
-		fmt.Fprintf(w, "%sArea Path%s\tLoading...\n", keyColor, valueColor)
-		fmt.Fprintf(w, "%sPriority%s\tLoading...\n", keyColor, valueColor)
-		fmt.Fprintf(w, "%sSeverity%s\tLoading...\n", keyColor, valueColor)
+		fmt.Fprintf(w, "%sArea Path%s\t[yellow]Loading...[white]\n", keyColor, valueColor)
+		fmt.Fprintf(w, "%sPriority%s\t[yellow]Loading...[white]\n", keyColor, valueColor)
+		fmt.Fprintf(w, "%sSeverity%s\t[yellow]Loading...[white]\n", keyColor, valueColor)
 	}
 
 	fmt.Fprintf(w, "%sIteration Path%s\t%s\n", keyColor, valueColor, workItem.IterationPath)
@@ -149,7 +149,7 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 		if workItem.Details != nil {
 			fmt.Fprintf(w, "%sDescription%s\t\n%s\n\n", keyColor, valueColor, normalizeDataString(workItem.Details.ReproSteps))
 		} else {
-			fmt.Fprintf(w, "%sDescription%s\tLoading...\n", keyColor, valueColor)
+			fmt.Fprintf(w, "%sDescription%s\t[yellow]Loading...[white]\n", keyColor, valueColor)
 		}
 	} else {
 		fmt.Fprintf(w, "%sDescription%s\t\n%s\n\n", keyColor, valueColor, normalizeDataString(workItem.Description))
@@ -233,6 +233,8 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 				}
 			}
 		}
+	} else {
+		fmt.Fprintf(w, "%s\nAdditional details%s\t[yellow]Loading...[white]\n", keyColor, valueColor)
 	}
 
 	w.Flush()

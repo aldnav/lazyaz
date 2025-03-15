@@ -15,7 +15,7 @@ import (
 	"golang.org/x/text/language"
 )
 
-const prTableData = `ID|Title|Status|Merge Status|Creator|Created On|Approvals|Repository
+const prTableData = `ID|Title|Status|Merge status|Creator|Created On|Approvals|Repository
 1|Loading...|Loading...|Loading...|Loading...|Loading...|Loading...|Loading...
 `
 
@@ -150,7 +150,7 @@ func prToDetailsData(pr *azuredevops.PullRequestDetails) string {
 	fmt.Fprintf(w, "%s\n", normalizeDataString(pr.Description))
 
 	if !pr.IsDetailFetched {
-		fmt.Fprintf(w, "%s\n", "[yellow]Loading...")
+		fmt.Fprintf(w, "%s\n", "[yellow]Loading...[white]")
 	}
 
 	fmt.Fprintf(w, "\n%sWork Item References%s\t%s\n", keyColor, valueColor, strings.Join(pr.WorkItemRefs, ", "))
