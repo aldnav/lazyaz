@@ -23,6 +23,9 @@ var userProfileErr error
 
 var localTzLocation *time.Location
 
+// TODO Move to own file
+var DetailsPanelBorderColorExpanded = tcell.ColorYellow
+
 func main() {
 	log.SetOutput(os.Stderr)
 	log.SetPrefix("[lazyaz] ")

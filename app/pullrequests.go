@@ -278,6 +278,8 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		detailsVisible = false
 		detailsPanelIsExpanded = false
 		detailsPanel.SetText("")
+		// Cleanup expanded details panel
+		detailsPanelIsExpanded = false
 	}
 
 	toggleExpandedDetailsPanel := func() {
@@ -289,11 +291,15 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 			detailsPanelIsExpanded = false
 			tableFlex.RemoveItem(detailsPanel)
 			tableFlex.AddItem(detailsPanel, 0, 1, false)
+			detailsPanel.SetBorderColor(tcell.ColorWhite)
+			app.SetFocus(table)
 		} else {
 			// Expand the details panel
 			detailsPanelIsExpanded = true
+			detailsPanel.SetBorderColor(DetailsPanelBorderColorExpanded)
 			tableFlex.RemoveItem(detailsPanel)
 			tableFlex.AddItem(detailsPanel, 0, 100, false)
+			app.SetFocus(detailsPanel)
 		}
 	}
 
@@ -304,11 +310,22 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 			// Set active panel for keyboard context
 			activePanel = "details"
 			// Show details
+			detailsPanel.SetBorderColor(tcell.ColorWhite)
 			tableFlex.AddItem(detailsPanel, 0, 1, false)
 			detailsVisible = true
 			displayCurrentPullRequestDetails()
 		}
 	}
+
+	detailsPanel.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Pressing 'Enter' while the `detailsPanelIsExpanded` will close the details panel
+		if event.Key() == tcell.KeyEnter && detailsVisible && detailsPanelIsExpanded {
+			closeDetailPanel()
+			app.SetFocus(table)
+			return nil
+		}
+		return event
+	})
 
 	table.SetSelectedFunc(func(row, column int) {
 		toggleDetailsPanel()
@@ -511,6 +528,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		// Handle 'q' key to close details panel
 		if activePanel == "details" && event.Rune() == 'q' && !searchMode {
 			closeDetailPanel()
+			app.SetFocus(table)
 			return nil
 		}
 
