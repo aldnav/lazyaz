@@ -162,6 +162,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 	var currentIndex int
 	// Details panel variables
 	var detailsVisible bool = false
+	detailsPanelIsExpanded := false
 	var loadingPRID int
 	// Add search-related variables
 	var searchText, previousSearchText string
@@ -275,7 +276,25 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		// Hide details
 		tableFlex.RemoveItem(detailsPanel)
 		detailsVisible = false
+		detailsPanelIsExpanded = false
 		detailsPanel.SetText("")
+	}
+
+	toggleExpandedDetailsPanel := func() {
+		if !detailsVisible {
+			return
+		}
+		if detailsPanelIsExpanded {
+			// Reset the details panel
+			detailsPanelIsExpanded = false
+			tableFlex.RemoveItem(detailsPanel)
+			tableFlex.AddItem(detailsPanel, 0, 1, false)
+		} else {
+			// Expand the details panel
+			detailsPanelIsExpanded = true
+			tableFlex.RemoveItem(detailsPanel)
+			tableFlex.AddItem(detailsPanel, 0, 100, false)
+		}
 	}
 
 	toggleDetailsPanel := func() {
@@ -492,6 +511,12 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		// Handle 'q' key to close details panel
 		if activePanel == "details" && event.Rune() == 'q' && !searchMode {
 			closeDetailPanel()
+			return nil
+		}
+
+		// Handle 'd' key to toggle details panel full view (if details are visible)
+		if activePanel == "details" && event.Rune() == 'd' && !searchMode {
+			toggleExpandedDetailsPanel()
 			return nil
 		}
 
