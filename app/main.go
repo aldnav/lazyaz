@@ -111,8 +111,52 @@ func main() {
 		AddItem(info, 0, 1, false).
 		AddItem(connectionStatus, 0, 1, false)
 
+	// Hotkeys
+	hotkeysView := GetHotkeyView()
+	extraActionsPanel := tview.NewFlex()
+
+	// Creating the main layout
+	layout := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(pages, 0, 1, true).
+		AddItem(extraActionsPanel, 0, 0, false).
+		AddItem(infoBar, 1, 1, false)
+
+	isKeyboardShortcutVisible := false
+
+	closeKeyboardShortcut := func() {
+		isKeyboardShortcutVisible = false
+		extraActionsPanel.RemoveItem(hotkeysView)
+		layout.ResizeItem(extraActionsPanel, 0, 0)
+		extraActionsPanel.SetBorderColor(tcell.ColorNone)
+		app.SetFocus(pages)
+	}
+	toggleKeyboardShortcut := func() {
+		if isKeyboardShortcutVisible {
+			closeKeyboardShortcut()
+		} else {
+			isKeyboardShortcutVisible = true
+			extraActionsPanel.AddItem(hotkeysView, 0, 1, true)
+			layout.ResizeItem(extraActionsPanel, 15, 0)
+			app.SetFocus(hotkeysView)
+		}
+	}
+
 	// Shortcuts to navigate between slides
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyCtrlK {
+			// Enable hotkey for keyboard shortcuts
+			// log.Println("CMD+K captured")
+			// I really want CMD+K here but it doesn't work so using CTRL+K instead
+			toggleKeyboardShortcut()
+			return nil
+		}
+
+		if event.Rune() == 'q' && extraActionsPanel.GetItemCount() > 0 {
+			closeKeyboardShortcut()
+			return nil
+		}
+
 		// TODO Enable "q" to stop the application
 		if event.Key() == tcell.KeyEscape {
 			app.Stop()
@@ -140,12 +184,6 @@ func main() {
 		connectionStatus.SetText(fmt.Sprintf("✅ Connected to %s ", _organization))
 		connectionStatus.SetTextColor(tcell.ColorGreen)
 	}
-
-	// Creating the main layout
-	layout := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(pages, 0, 1, true).
-		AddItem(infoBar, 1, 1, false)
 
 	// Start the application.
 	if err := app.SetRoot(layout, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
