@@ -40,11 +40,6 @@ func _prsToTableData(prs []azuredevops.PullRequestDetails) string {
 	return tableData
 }
 
-// TODO Move to utilities
-func _isSameAsUser(name string) bool {
-	return name == activeUser.DisplayName || name == activeUser.Username
-}
-
 func _redrawTable(table *tview.Table, prs []azuredevops.PullRequestDetails) {
 	table.Clear()
 	tableData := _prsToTableData(prs)
@@ -78,7 +73,7 @@ func _redrawTable(table *tview.Table, prs []azuredevops.PullRequestDetails) {
 				}
 				if column == 4 {
 					// Creator column
-					if _isSameAsUser(cell) {
+					if isSameAsUser(cell, activeUser) {
 						color = tcell.ColorLimeGreen
 					}
 				}
@@ -91,7 +86,7 @@ func _redrawTable(table *tview.Table, prs []azuredevops.PullRequestDetails) {
 				}
 				// if column == 7 {
 				// 	// ClosedBy column
-				// 	if _isSameAsUser(cell) {
+				// 	if isSameAsUser(cell, activeUser) {
 				// 		color = tcell.ColorLimeGreen
 				// 	}
 				// }
@@ -120,7 +115,7 @@ func prToDetailsData(pr *azuredevops.PullRequestDetails) string {
 	fmt.Fprintf(w, "%sStatus%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(pr.Status))
 	fmt.Fprintf(w, "%sDraft%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(strconv.FormatBool(pr.IsDraft)))
 	fmt.Fprintf(w, "%sMerge Status%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(pr.MergeStatus))
-	if _isSameAsUser(pr.Author) {
+	if isSameAsUser(pr.Author, activeUser) {
 		fmt.Fprintf(w, "%sCreator%s\t%s\n", keyColor, valueColor, "[green]"+pr.Author+"[white]")
 	} else {
 		fmt.Fprintf(w, "%sCreator%s\t%s\n", keyColor, valueColor, pr.Author)

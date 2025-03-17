@@ -141,10 +141,6 @@ func normalizeDataString(data string) string {
 	return strip.StripTags(data)
 }
 
-func isSameAsUser(name string) bool {
-	return name == activeUser.DisplayName || name == activeUser.Username
-}
-
 func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 	workItemIsAssignedToUser := workItem.IsAssignedToUser(activeUser)
 	var buf bytes.Buffer
@@ -195,13 +191,13 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 	}
 
 	fmt.Fprintf(w, "%sCreated On%s\t%s\n", keyColor, valueColor, workItem.CreatedDate)
-	if isSameAsUser(workItem.CreatedBy) {
+	if isSameAsUser(workItem.CreatedBy, activeUser) {
 		fmt.Fprintf(w, "%sCreated By%s\t[green]%s[white]\n", keyColor, valueColor, workItem.CreatedBy)
 	} else {
 		fmt.Fprintf(w, "%sCreated By%s\t%s\n", keyColor, valueColor, workItem.CreatedBy)
 	}
 	fmt.Fprintf(w, "%sChanged On%s\t%s\n", keyColor, valueColor, workItem.ChangedDate)
-	if isSameAsUser(workItem.ChangedBy) {
+	if isSameAsUser(workItem.ChangedBy, activeUser) {
 		fmt.Fprintf(w, "%sChanged By%s\t[green]%s[white]\n", keyColor, valueColor, workItem.ChangedBy)
 	} else {
 		fmt.Fprintf(w, "%sChanged By%s\t%s\n", keyColor, valueColor, workItem.ChangedBy)
@@ -234,7 +230,7 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 					statusColor = "[yellow]"
 				}
 				fmt.Fprintf(w, "\t  %sStatus%s\t%s%s[white]\n", keyColor, valueColor, statusColor, pr.Status)
-				if isSameAsUser(pr.Author) {
+				if isSameAsUser(pr.Author, activeUser) {
 					fmt.Fprintf(w, "\t  %sAuthor%s\t[green]%s[white]\n", keyColor, valueColor, pr.Author)
 				} else {
 					fmt.Fprintf(w, "\t  %sAuthor%s\t%s\n", keyColor, valueColor, pr.Author)
@@ -242,7 +238,7 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 				fmt.Fprintf(w, "\t  %sURL%s\t%s\n", keyColor, valueColor, pr.GetURL())
 				fmt.Fprintf(w, "\t  %sCreated Date%s\t%s\n", keyColor, valueColor, pr.CreatedDate)
 				if pr.ClosedBy != "" {
-					if isSameAsUser(pr.ClosedBy) {
+					if isSameAsUser(pr.ClosedBy, activeUser) {
 						fmt.Fprintf(w, "\t  %sClosed By%s\t[green]%s[white]\n", keyColor, valueColor, pr.ClosedBy)
 					} else {
 						fmt.Fprintf(w, "\t  %sClosed By%s\t%s\n", keyColor, valueColor, pr.ClosedBy)
