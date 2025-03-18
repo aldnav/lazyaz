@@ -115,6 +115,10 @@ func main() {
 	hotkeysView := GetHotkeyView()
 	extraActionsPanel := tview.NewFlex()
 
+	// Quick actions
+	quickActionsPane := QuickActionsPane()
+	pages.AddPage("quickActions", quickActionsPane, true, false)
+
 	// Creating the main layout
 	layout := tview.NewFlex().
 		SetDirection(tview.FlexRow).
@@ -157,8 +161,25 @@ func main() {
 			return nil
 		}
 
-		// TODO Enable "q" to stop the application
+		// Show/hide quick actions with Ctrl+O
+		if event.Key() == tcell.KeyCtrlO {
+			if pages.HasPage("quickActions") {
+				pages.ShowPage("quickActions")
+				app.SetFocus(quickActionsPane)
+			}
+			return nil
+		}
+
+		// Handle Escape key for quick actions and application exit
 		if event.Key() == tcell.KeyEscape {
+			if pages.HasPage("quickActions") {
+				frontPageName, _ := pages.GetFrontPage()
+				if frontPageName == "quickActions" {
+					pages.HidePage("quickActions")
+					app.SetFocus(pages)
+					return nil
+				}
+			}
 			app.Stop()
 		} else if event.Rune() == ']' {
 			nextSlide()

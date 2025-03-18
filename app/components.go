@@ -34,3 +34,20 @@ func GetHotkeyView() *tview.TextView {
 		SetTextAlign(tview.AlignLeft).
 		SetDynamicColors(true)
 }
+
+func QuickActionsPane() tview.Primitive {
+	form := tview.NewForm().
+		AddInputField("Search", "", 20, nil, nil)
+	form.SetBorder(true).
+		SetTitle("Search").
+		SetTitleAlign(tview.AlignCenter)
+	modal := NewFormModal(form).
+		SetText("Search").
+		AddButtons([]string{"Quit", "Cancel"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Quit" {
+				app.Stop()
+			}
+		})
+	return modal
+}
