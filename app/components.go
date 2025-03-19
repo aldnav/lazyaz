@@ -38,15 +38,20 @@ func GetHotkeyView() *tview.TextView {
 func QuickActionsPane() tview.Primitive {
 	form := tview.NewForm().
 		AddInputField("Search", "", 20, nil, nil)
-	form.SetBorder(true).
-		SetTitle("Search").
+	form.SetBorder(false).
 		SetTitleAlign(tview.AlignCenter)
+	form.SetButtonBackgroundColor(tview.Styles.ContrastBackgroundColor)
+	form.SetHorizontal(true)
 	modal := NewFormModal(form).
-		SetText("Search").
-		AddButtons([]string{"Quit", "Cancel"}).
+		SetText("").
+		SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		AddButtons([]string{"Search"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			if buttonLabel == "Quit" {
-				app.Stop()
+			// if buttonLabel == "Quit" {
+			// 	app.Stop()
+			// }
+			if buttonLabel == "Search" {
+				// TODO Delegate from the calling function
 			}
 		})
 	return modal

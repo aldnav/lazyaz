@@ -29,13 +29,19 @@ type Modal struct {
 	// The optional callback for when the user clicked one of the buttons. It
 	// receives the index of the clicked button and the button's label.
 	done func(buttonIndex int, buttonLabel string)
+
+	// Options for the display for drawing
+	extraHeight int
+	extraWidth  int
 }
 
 // NewModal returns a new modal message window.
 func NewModal() *Modal {
 	m := &Modal{
-		Box:       tview.NewBox().SetBorder(true).SetBackgroundColor(tview.Styles.ContrastBackgroundColor),
-		textColor: tview.Styles.PrimaryTextColor,
+		Box:         tview.NewBox().SetBorder(true).SetBackgroundColor(tview.Styles.ContrastBackgroundColor),
+		textColor:   tview.Styles.PrimaryTextColor,
+		extraHeight: 6,
+		extraWidth:  4,
 	}
 	m.AddDefaultForm()
 	m.form.SetCancelFunc(func() {
@@ -52,8 +58,10 @@ func NewModal() *Modal {
 // NewFormModal returns a new modal message window with a custom form.
 func NewFormModal(form *tview.Form) *Modal {
 	m := &Modal{
-		Box:       tview.NewBox().SetBorder(true).SetBackgroundColor(tview.Styles.ContrastBackgroundColor),
-		textColor: tview.Styles.PrimaryTextColor,
+		Box:         tview.NewBox().SetBorder(true).SetBackgroundColor(tview.Styles.ContrastBackgroundColor),
+		textColor:   tview.Styles.PrimaryTextColor,
+		extraHeight: 12,
+		extraWidth:  3,
 	}
 	m.SetForm(form)
 	m.form.SetCancelFunc(func() {
@@ -184,6 +192,18 @@ func (m *Modal) HasFocus() bool {
 	return m.form.HasFocus()
 }
 
+// SetExtraHeight sets the extra height of the modal.
+func (m *Modal) SetExtraHeight(height int) *Modal {
+	m.extraHeight = height
+	return m
+}
+
+// SetExtraWidth sets the extra width of the modal.
+func (m *Modal) SetExtraWidth(width int) *Modal {
+	m.extraWidth = width
+	return m
+}
+
 // Draw draws this primitive onto the screen.
 func (m *Modal) Draw(screen tcell.Screen) {
 	// Calculate the width of this modal.
@@ -208,8 +228,8 @@ func (m *Modal) Draw(screen tcell.Screen) {
 	}
 
 	// Set the modal's position and size.
-	height := len(lines) + 6
-	width += 4
+	height := len(lines) + m.extraHeight
+	width += m.extraWidth
 	x := (screenWidth - width) / 2
 	y := (screenHeight - height) / 2
 	m.SetRect(x, y, width, height)
