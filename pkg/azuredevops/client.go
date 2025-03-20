@@ -132,6 +132,43 @@ type UserProfile struct {
 	Username    string `json:"-"` // Without the email domain
 }
 
+type Pipeline struct {
+	ID               int    `json:"id"`
+	Name             string `json:"name"`
+	Path             string `json:"path"`
+	Status           string `json:"status"`
+	DefaultQueue     string `json:"defaultQueue"`
+	Project          string `json:"project"`
+	Author           string `json:"author"`
+	AuthorUniqueName string `json:"authorUniqueName"`
+	PipelineType     string `json:"pipelineType"`
+}
+
+type PipelineRun struct {
+	ID                     int       `json:"id"`
+	BuildNumber            string    `json:"buildNumber"`
+	DefinitionID           int       `json:"definitionId"`
+	DefinitionName         string    `json:"definitionName"`
+	DefinitionPath         string    `json:"definitionPath"`
+	FinishTime             time.Time `json:"finishTime"`
+	KeepForever            bool      `json:"keepForever"`
+	Priority               string    `json:"priority"`
+	Queue                  string    `json:"queue"`
+	QueueTime              time.Time `json:"queueTime"`
+	Reason                 string    `json:"reason"`
+	Repository             string    `json:"repository"`
+	RepositoryType         string    `json:"repositoryType"`
+	RequestedBy            string    `json:"requestedBy"`
+	RequestedByUniqueName  string    `json:"requestedByUniqueName"`
+	RequestedFor           string    `json:"requestedFor"`
+	RequestedForUniqueName string    `json:"requestedForUniqueName"`
+	Result                 string    `json:"result"`
+	SourceBranch           string    `json:"sourceBranch"`
+	SourceVersion          string    `json:"sourceVersion"`
+	StartTime              time.Time `json:"startTime"`
+	Status                 string    `json:"status"`
+}
+
 // NewConfig creates a new Config, first trying to read from config file, then falling back to environment variables
 func NewConfig() (*Config, error) {
 	// Try to read organization and project from config file first
@@ -632,4 +669,33 @@ func (c *Client) GetCompletedPRs() ([]PullRequestDetails, error) {
 
 func (c *Client) GetAbandonedPRs() ([]PullRequestDetails, error) {
 	return c.FetchPullRequestsByStatus("abandoned")
+}
+
+// Pipeline functions
+func (c *Client) GetPipelineDefinitions() ([]Pipeline, error) {
+	output, err := runAzCommand("pipelines", "list", "--query", jmespathPipelineDefinitionsQuery, "--output", "json")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching pipeline definitions: %v", err)
+	}
+
+	// Parse the output
+	var pipelines []Pipeline
+	if err := json.Unmarshal(output, &pipelines); err != nil {
+		return nil, fmt.Errorf("error parsing pipelines: %v", err)
+	}
+	return pipelines, nil
+}
+
+func (c *Client) GetPipelineRuns() ([]PipelineRun, error) {
+	output, err := runAzCommand("pipelines", "runs", "list", "--query", jmespathPipelineRunsQuery, "--output", "json", "--top", "40")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching pipeline runs: %v", err)
+	}
+
+	// Parse the output
+	var runs []PipelineRun
+	if err := json.Unmarshal(output, &runs); err != nil {
+		return nil, fmt.Errorf("error parsing pipeline runs: %v", err)
+	}
+	return runs, nil
 }

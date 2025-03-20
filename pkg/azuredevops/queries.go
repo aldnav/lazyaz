@@ -60,6 +60,8 @@ const jmespathPRDetailsQuery = `{` +
 	`}`
 const jmespathPRListsQuery = `[].` + jmespathPRDetailsQuery
 const jmespathUserProfileQuery = `{"id": id, "displayName": displayName, "mail": mail, "givenName": givenName, "surname": surname}`
+const jmespathPipelineDefinitionsQuery = `[].{id:id, name:name, path:path, status:queueStatus, defaultQueue:queue.name, project:project.name, author:authoredBy.displayName, authorUniqueName:authoredBy.uniqueName, pipelineType:type}`
+const jmespathPipelineRunsQuery = `[].{id:id, buildNumber:buildNumber, definitionId: definition.id, definitionName: definition.name, definitionPath: definition.path, finishTime: finishTime, keepForever:keepForever, priority:priority, queue:queue.name, queueTime:queueTime, reason:reason, repository:repository.id, repositoryType:repository.type, requestedBy:requestedBy.displayName, requestedByUniqueName:requestedBy.uniqueName, requestedFor:requestedFor.displayName, requestedForUniqueName:requestedFor.uniqueName, result:result, sourceBranch:sourceBranch, sourceVersion:sourceVersion, startTime:startTime, status:status }`
 
 // References:
 // - https://learn.microsoft.com/en-us/azure/devops/boards/queries/query-operators-variables?view=azure-devops

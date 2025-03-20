@@ -57,8 +57,7 @@ func main() {
 	slides := []Slide{
 		WorkItemsPage,
 		PullRequestsPage,
-		// TODO Implement pipelines page
-		// PipelinesPage,
+		PipelinesPage,
 	}
 
 	pages := tview.NewPages()
