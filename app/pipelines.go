@@ -93,6 +93,13 @@ func redrawRunsTable(table *tview.Table, runs []azuredevops.PipelineRun) {
 						color = _runResultColors[cell]
 					}
 				}
+
+				if column == 7 {
+					// Requested For column
+					if isSameAsUser(cell, activeUser) {
+						color = tcell.ColorGreen
+					}
+				}
 			}
 			tableCell := tview.NewTableCell(cell).
 				SetTextColor(color).
