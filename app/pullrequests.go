@@ -273,8 +273,6 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		detailsVisible = false
 		detailsPanelIsExpanded = false
 		detailsPanel.SetText("")
-		// Cleanup expanded details panel
-		detailsPanelIsExpanded = false
 	}
 
 	toggleExpandedDetailsPanel := func() {
