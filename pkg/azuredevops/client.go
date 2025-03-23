@@ -161,6 +161,8 @@ type PipelineRun struct {
 	Priority               string    `json:"priority"`
 	Queue                  string    `json:"queue"`
 	QueueTime              time.Time `json:"queueTime"`
+	ProjectID              string    `json:"projectId"`
+	ProjectURL             string    `json:"projectUrl"`
 	Reason                 string    `json:"reason"`
 	Repository             string    `json:"repository"`
 	RepositoryType         string    `json:"repositoryType"`
@@ -705,4 +707,9 @@ func (c *Client) GetPipelineRuns() ([]PipelineRun, error) {
 		return nil, fmt.Errorf("error parsing pipeline runs: %v", err)
 	}
 	return runs, nil
+}
+
+func (r *PipelineRun) GetWebURL() string {
+	baseURL := strings.Split(r.ProjectURL, "_apis")[0] + r.ProjectID
+	return fmt.Sprintf("%s/_build/results?buildId=%d", baseURL, r.ID)
 }

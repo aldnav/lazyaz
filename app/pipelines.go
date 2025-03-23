@@ -137,6 +137,7 @@ func pipelineRunToDetailsData(run *azuredevops.PipelineRun) string {
 	fmt.Fprintf(w, "%sStatus%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(run.Status))
 	fmt.Fprintf(w, "%sResult%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(run.Result))
 	fmt.Fprintf(w, "%sPipeline%s\t%s\n", keyColor, valueColor, run.DefinitionName)
+	fmt.Fprintf(w, "%sURL%s\t%s\n", keyColor, valueColor, run.GetWebURL())
 	fmt.Fprintf(w, "%sSource Branch%s\t%s\n", keyColor, valueColor, run.SourceBranch)
 	fmt.Fprintf(w, "%sQueue%s\t%s\n", keyColor, valueColor, run.Queue)
 	fmt.Fprintf(w, "%sQueue Time%s\t%s\n", keyColor, valueColor, run.QueueTime.Format("2006-01-02 15:04:05"))
