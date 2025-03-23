@@ -26,17 +26,32 @@ type WorkItem struct {
 	PRDetails            []PullRequestDetails `json:"-"`
 }
 
+type Attachment struct {
+	Attributes struct {
+		AuthorizedDate       time.Time `json:"authorizedDate"`
+		ID                   int       `json:"id"`
+		Name                 string    `json:"name"`
+		ResourceCreatedDate  time.Time `json:"resourceCreatedDate"`
+		ResourceModifiedDate time.Time `json:"resourceModifiedDate"`
+		ResourceSize         int       `json:"resourceSize"`
+		RevisedDate          time.Time `json:"revisedDate"`
+	} `json:"attributes"`
+	Rel string `json:"rel"`
+	URL string `json:"url"`
+}
+
 type WorkItemDetails struct {
-	ReproSteps         string   `json:"Repro Steps"`
-	SystemAreaPath     string   `json:"System.AreaPath"`
-	AcceptanceCriteria string   `json:"Acceptance Criteria"`
-	BoardColumn        string   `json:"Board Column"`
-	BoardColumnDone    bool     `json:"Board Column Done"`
-	CommentCount       int      `json:"Comment Count"`
-	LatestComment      string   `json:"Latest Comment"`
-	PRRefs             []string `json:"PR Refs"`
-	Priority           int      `json:"Priority"`
-	Severity           string   `json:"Severity"`
+	ReproSteps         string       `json:"Repro Steps"`
+	SystemAreaPath     string       `json:"System.AreaPath"`
+	AcceptanceCriteria string       `json:"Acceptance Criteria"`
+	BoardColumn        string       `json:"Board Column"`
+	BoardColumnDone    bool         `json:"Board Column Done"`
+	CommentCount       int          `json:"Comment Count"`
+	LatestComment      string       `json:"Latest Comment"`
+	PRRefs             []string     `json:"PR Refs"`
+	Priority           int          `json:"Priority"`
+	Severity           string       `json:"Severity"`
+	Attachments        []Attachment `json:"Attachments"`
 }
 
 // GetMoreWorkItemDetails retrieves the details of a specific work item

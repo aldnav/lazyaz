@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/aldnav/lazyaz/pkg/azuredevops"
+	"github.com/dustin/go-humanize"
 	"github.com/gdamore/tcell/v2"
 	strip "github.com/grokify/html-strip-tags-go"
 	"github.com/rivo/tview"
@@ -263,6 +264,16 @@ func workItemToDetailsData(workItem *azuredevops.WorkItem) string {
 					}
 					fmt.Fprintf(w, "\t  \t%s\t%s%s[white]\n", vote.Reviewer, color, vote.Description)
 				}
+			}
+		}
+		// Attachments
+		if len(workItem.Details.Attachments) > 0 {
+			fmt.Fprintf(w, "%sAttachments%s\n", keyColor, valueColor)
+			for _, attachment := range workItem.Details.Attachments {
+				fmt.Fprintf(w, "\t- %sName%s\t%s\n", keyColor, valueColor, attachment.Attributes.Name)
+				fmt.Fprintf(w, "\t  %sSize%s\t%s\n", keyColor, valueColor, humanize.IBytes(uint64(attachment.Attributes.ResourceSize)))
+				fmt.Fprintf(w, "\t  %sDate Added%s\t%s (%s)\n", keyColor, valueColor, humanize.Time(attachment.Attributes.ResourceCreatedDate), attachment.Attributes.ResourceCreatedDate.In(localTzLocation).Format("2006-01-02 03:04 PM -0700"))
+				fmt.Fprintf(w, "\t  %sURL%s\t%s\n", keyColor, valueColor, attachment.URL)
 			}
 		}
 	} else {
@@ -674,6 +685,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		if len(workItems) > 0 {
 			app.QueueUpdateDraw(func() {
 				redrawTable(table, workItems)
+				app.SetFocus(table)
 			})
 		} else {
 			app.QueueUpdateDraw(func() {
@@ -681,6 +693,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 				table.SetCell(0, 0, tview.NewTableCell("No work items found. Try other filters (press \\ and Up or Down)").
 					SetTextColor(tcell.ColorRed).
 					SetAlign(tview.AlignCenter))
+				app.SetFocus(table)
 			})
 		}
 	}()

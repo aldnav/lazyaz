@@ -32,7 +32,8 @@ const jmespathWorkItemDetailsQuery = `{` +
 	`"Latest Comment": fields."System.History", ` +
 	`"PR refs": relations[?attributes.name=='Pull Request'].url, ` +
 	`"Priority": fields."Microsoft.VSTS.Common.Priority", ` +
-	`"Severity": fields."Microsoft.VSTS.Common.Severity"` +
+	`"Severity": fields."Microsoft.VSTS.Common.Severity", ` +
+	`"Attachments": relations[?rel=='AttachedFile']` +
 	`}`
 const jmespathPRDetailsQuery = `{` +
 	`"Title": title, ` +
