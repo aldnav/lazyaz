@@ -155,7 +155,11 @@ func pipelineRunToDetailsData(run *azuredevops.PipelineRun) string {
 		fmt.Fprintf(w, "%sRequested By%s\t%s\n", keyColor, valueColor, run.RequestedBy)
 	}
 	fmt.Fprintf(w, "%sPriority%s\t%s\n", keyColor, valueColor, run.Priority)
-	fmt.Fprintf(w, "%sRepository%s\t%s\n", keyColor, valueColor, run.Repository)
+	if run.RepositoryName != "" {
+		fmt.Fprintf(w, "%sRepository%s\t%s\n", keyColor, valueColor, run.RepositoryName)
+	} else {
+		fmt.Fprintf(w, "%sRepository%s\t%s\n", keyColor, valueColor, run.RepositoryID)
+	}
 	fmt.Fprintf(w, "%sRepository Type%s\t%s\n", keyColor, valueColor, run.RepositoryType)
 	fmt.Fprintf(w, "%sLogs URL%s\t%s\n", keyColor, valueColor, run.LogsURL)
 

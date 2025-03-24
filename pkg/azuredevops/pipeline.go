@@ -38,7 +38,8 @@ type PipelineRun struct {
 	ProjectID              string    `json:"projectId"`
 	ProjectURL             string    `json:"projectUrl"`
 	Reason                 string    `json:"reason"`
-	Repository             string    `json:"repository"`
+	RepositoryID           string    `json:"repositoryId"`
+	RepositoryName         string    `json:"repositoryName"`
 	RepositoryType         string    `json:"repositoryType"`
 	RequestedBy            string    `json:"requestedBy"`
 	RequestedByUniqueName  string    `json:"requestedByUniqueName"`
