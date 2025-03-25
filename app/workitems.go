@@ -294,6 +294,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	var searchText string
 	var previousSearchText string
 	workItemFilter := "me"
+	isFetching := make(chan bool, 1) // Make it buffered
 
 	// Add search-related variables
 	var searchMode bool = false
@@ -606,37 +607,80 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 
 		// Refresh the work items
 		go func() {
-			dropdown.SetLabel("Fetching ")
-			var err error
-			workItems, err = client.GetWorkItemsForFilter(workItemFilter)
-			if err != nil {
-				log.Printf("Error fetching work items: %v", err)
-			}
-			if len(workItems) > 0 {
-				app.QueueUpdateDraw(func() {
-					dropdown.SetLabel("")
-					// Reset the index
-					currentIndex = 0
-					redrawTable(table, workItems)
-					// Close the details panel
-					closeDetailPanel()
-					app.SetFocus(table)
-					table.Select(0, 0)
-				})
-			} else {
-				app.QueueUpdateDraw(func() {
-					dropdown.SetLabel("")
-					table.SetCell(0, 0, tview.NewTableCell("No work items found. Try other filters (press \\ and Up or Down)").
-						SetTextColor(tcell.ColorRed).
-						SetAlign(tview.AlignCenter))
-					app.SetFocus(table)
-				})
+			select {
+			case isFetching <- true:
+				dropdown.SetLabel("Fetching ")
+				var err error
+				workItems, err = client.GetWorkItemsForFilter(workItemFilter)
+				<-isFetching
+				if err != nil {
+					log.Printf("Error fetching work items: %v", err)
+				}
+				if len(workItems) > 0 {
+					app.QueueUpdateDraw(func() {
+						dropdown.SetLabel("")
+						// Reset the index
+						currentIndex = 0
+						redrawTable(table, workItems)
+						// Close the details panel
+						closeDetailPanel()
+						app.SetFocus(table)
+						table.Select(0, 0)
+					})
+				} else {
+					app.QueueUpdateDraw(func() {
+						dropdown.SetLabel("")
+						table.SetCell(0, 0, tview.NewTableCell("No work items found. Try other filters (press \\ and Up or Down)").
+							SetTextColor(tcell.ColorRed).
+							SetAlign(tview.AlignCenter))
+						app.SetFocus(table)
+					})
+				}
+			default:
+				// Another fetch is in progress, skip this one
+				return
 			}
 		}()
 	})
 
 	mainWindow.AddItem(mainFlex, 0, 1, true)
 	mainWindow.AddItem(actionsPanel, 1, 1, false)
+
+	// Integrate with Azure DevOps
+	loadData := func() {
+		select {
+		case isFetching <- true: // Try to write to channel
+			var err error
+			workItems, err = client.GetWorkItemsForFilter(workItemFilter)
+			<-isFetching // Release the lock
+			if err != nil {
+				log.Printf("Error fetching work items: %v", err)
+			}
+			if len(workItems) > 0 {
+				app.QueueUpdateDraw(func() {
+					redrawTable(table, workItems)
+					dropdown.SetLabel("")
+					app.SetFocus(table)
+					if detailsVisible {
+						displayCurrentWorkItemDetails()
+					}
+				})
+			} else {
+				app.QueueUpdateDraw(func() {
+					table.Clear()
+					table.SetCell(0, 0, tview.NewTableCell("No work items found. Try other filters (press \\ and Up or Down)").
+						SetTextColor(tcell.ColorRed).
+						SetAlign(tview.AlignCenter))
+					dropdown.SetLabel("")
+					app.SetFocus(table)
+				})
+			}
+		default:
+			// Another fetch is in progress, skip this one
+			return
+		}
+	}
+
 	// Add input capture for toggling details panel
 	mainWindow.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Handle search mode activation with "/"
@@ -672,31 +716,17 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			app.SetFocus(dropdown)
 			return nil
 		}
+
+		// Handle 'r' key to refresh the data
+		if event.Rune() == 'r' {
+			dropdown.SetLabel("Refreshing...")
+			go loadData()
+			return nil
+		}
 		return event
 	})
 
-	// Integrate with Azure DevOps
-	go func() {
-		var err error
-		workItems, err = client.GetWorkItemsForFilter(workItemFilter)
-		if err != nil {
-			log.Printf("Error fetching work items: %v", err)
-		}
-		if len(workItems) > 0 {
-			app.QueueUpdateDraw(func() {
-				redrawTable(table, workItems)
-				app.SetFocus(table)
-			})
-		} else {
-			app.QueueUpdateDraw(func() {
-				table.Clear()
-				table.SetCell(0, 0, tview.NewTableCell("No work items found. Try other filters (press \\ and Up or Down)").
-					SetTextColor(tcell.ColorRed).
-					SetAlign(tview.AlignCenter))
-				app.SetFocus(table)
-			})
-		}
-	}()
+	go loadData()
 
 	return "Work Items", mainWindow
 }
