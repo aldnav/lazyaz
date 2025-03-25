@@ -171,6 +171,7 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 	// var definitions []azuredevops.Pipeline
 	var runs []azuredevops.PipelineRun
 	var currentIndex int
+	isFetching := make(chan bool, 1)
 	// Details panel variables
 	var detailsVisible bool
 	var detailsPanelIsExpanded bool
@@ -281,19 +282,33 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 	}
 
-	go func() {
-		var err error
-		// definitions, err = fetchDefinitions()
-		// if err != nil {
-		// 	log.Fatalf("Error fetching pipeline definitions: %v", err)
-		// }
-		runs, err = fetchRuns()
-		app.SetFocus(table)
-		if err != nil {
-			log.Fatalf("Error fetching pipeline runs: %v", err)
+	loadData := func() {
+		select {
+		case isFetching <- true:
+			var err error
+			// definitions, err = fetchDefinitions()
+			// if err != nil {
+			// 	log.Fatalf("Error fetching pipeline definitions: %v", err)
+			// }
+			runs, err = fetchRuns()
+			<-isFetching // Release the lock
+			app.SetFocus(table)
+			if err != nil {
+				log.Fatalf("Error fetching pipeline runs: %v", err)
+			}
+			redrawRunsTable(table, runs)
+			app.QueueUpdateDraw(func() {
+				if detailsVisible {
+					displayCurrentPipelineRunDetails()
+				}
+			})
+		default:
+			// Another fetch is in progress, skip this one
+			return
 		}
-		redrawRunsTable(table, runs)
-	}()
+	}
+
+	go loadData()
 
 	// Manage input capture
 	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -309,6 +324,13 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		// if activePanel == "details" && event.Rune() == 'd' && !searchMode {
 		if activePanel == "details" && event.Rune() == 'd' {
 			toggleExpandedDetailsPanel()
+			return nil
+		}
+
+		// Handle 'r' key to refresh the data
+		if event.Rune() == 'r' {
+			// dropdown.SetLabel("Refreshing...")
+			go loadData()
 			return nil
 		}
 		return event

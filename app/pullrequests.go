@@ -155,6 +155,7 @@ func prToDetailsData(pr *azuredevops.PullRequestDetails) string {
 func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) {
 	var prs []azuredevops.PullRequestDetails
 	var currentIndex int
+	isFetching := make(chan bool, 1)
 	// Details panel variables
 	var detailsVisible bool = false
 	detailsPanelIsExpanded := false
@@ -482,25 +483,38 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 	})
 
 	// Load data
-	go func() {
-		var err error
-		prs, err = client.GetPRsCreatedByUser(activeUser.Mail, "")
-		if err != nil {
-			log.Printf("Error fetching pull requests: %v", err)
+	loadData := func() {
+		select {
+		case isFetching <- true:
+			var err error
+			prs, err = client.GetPRsCreatedByUser(activeUser.Mail, "")
+			if err != nil {
+				log.Printf("Error fetching pull requests: %v", err)
+			}
+			<-isFetching // Release the lock
+			if len(prs) > 0 {
+				app.QueueUpdateDraw(func() {
+					_redrawTable(table, prs)
+					dropdown.SetLabel("")
+					if detailsVisible {
+						displayCurrentPullRequestDetails()
+					}
+				})
+			} else {
+				app.QueueUpdateDraw(func() {
+					table.Clear()
+					table.SetCell(0, 0, tview.NewTableCell("No pull requests found. Try other filters (press \\ and Up or Down)").
+						SetTextColor(tcell.ColorRed).
+						SetAlign(tview.AlignCenter))
+					dropdown.SetLabel("")
+				})
+			}
+		default:
+			// Another fetch is in progress, skip this one
+			return
 		}
-		if len(prs) > 0 {
-			app.QueueUpdateDraw(func() {
-				_redrawTable(table, prs)
-			})
-		} else {
-			app.QueueUpdateDraw(func() {
-				table.Clear()
-				table.SetCell(0, 0, tview.NewTableCell("No pull requests found. Try other filters (press \\ and Up or Down)").
-					SetTextColor(tcell.ColorRed).
-					SetAlign(tview.AlignCenter))
-			})
-		}
-	}()
+	}
+	go loadData()
 
 	mainWindow.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Handle search mode activation with "/"
@@ -534,6 +548,13 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		// Handle '\' key to activate dropdown
 		if event.Rune() == '\\' {
 			app.SetFocus(dropdown)
+			return nil
+		}
+
+		// Handle 'r' key to refresh the data
+		if event.Rune() == 'r' {
+			dropdown.SetLabel("Refreshing...")
+			go loadData()
 			return nil
 		}
 		return event
