@@ -23,6 +23,7 @@ func GetHotkeyView() *tview.TextView {
 	fmt.Fprintln(w, "D\tExpand detail panel")
 	fmt.Fprintln(w, "Q\tClose details panel")
 	fmt.Fprintln(w, " \tClose hotkeys")
+	fmt.Fprintln(w, "R\tRefresh")
 	fmt.Fprintln(w, "CTRL+K\tToggle hotkeys")
 	fmt.Fprintln(w, "ESC\tExit application")
 	w.Flush()
