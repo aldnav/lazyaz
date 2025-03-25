@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -446,6 +447,90 @@ func (c *Client) GetPipelineDefinitions() ([]Pipeline, error) {
 
 func (c *Client) GetPipelineRuns() ([]PipelineRun, error) {
 	output, err := runAzCommand("pipelines", "runs", "list", "--query", jmespathPipelineRunsQuery, "--output", "json", "--top", "40")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching pipeline runs: %v", err)
+	}
+
+	// Parse the output
+	var runs []PipelineRun
+	if err := json.Unmarshal(output, &runs); err != nil {
+		return nil, fmt.Errorf("error parsing pipeline runs: %v", err)
+	}
+	return runs, nil
+}
+
+var pipelineRunsAllowedReasons = []string{
+	"all",
+	"batchedCI",
+	"buildCompletion",
+	"checkInShelveset",
+	"individualCI",
+	"manual",
+	"pullRequest",
+	"schedule",
+	"triggered",
+	"userCreated",
+	"validateShelveset",
+}
+
+var pipelineRunsAllowedResults = []string{
+	"all",
+	"canceled",
+	"failed",
+	"none",
+	"partiallySucceeded",
+	"succeeded",
+}
+
+var pipelineRunsAllowedStatuses = []string{
+	"all",
+	"cancelling",
+	"completed",
+	"inProgress",
+	"none",
+	"notStarted",
+	"postponed",
+}
+
+func (c *Client) GetPipelineRunsFiltered(
+	pipelineID int,
+	branch string,
+	reason string,
+	result string,
+	status string,
+	requestedFor string,
+) ([]PipelineRun, error) {
+	cmdParams := []string{"pipelines", "runs", "list", "--query", jmespathPipelineRunsQuery, "--output", "json", "--top", "40"}
+	if pipelineID != 0 {
+		cmdParams = append(cmdParams, "--pipeline-ids", strconv.Itoa(pipelineID))
+	}
+	if branch != "" {
+		cmdParams = append(cmdParams, "--branch", branch)
+	}
+	if reason != "" {
+		if !slices.Contains(pipelineRunsAllowedReasons, reason) {
+			return nil, fmt.Errorf("invalid reason: %s", reason)
+		}
+		cmdParams = append(cmdParams, "--reason", reason)
+	}
+	if result != "" {
+		if !slices.Contains(pipelineRunsAllowedResults, result) {
+			return nil, fmt.Errorf("invalid result: %s", result)
+		}
+		if result != "all" {
+			cmdParams = append(cmdParams, "--result", result)
+		}
+	}
+	if status != "" {
+		if !slices.Contains(pipelineRunsAllowedStatuses, status) {
+			return nil, fmt.Errorf("invalid status: %s", status)
+		}
+		cmdParams = append(cmdParams, "--status", status)
+	}
+	if requestedFor != "" {
+		cmdParams = append(cmdParams, "--requested-for", requestedFor)
+	}
+	output, err := runAzCommand(cmdParams...)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching pipeline runs: %v", err)
 	}

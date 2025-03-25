@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -35,6 +36,15 @@ func fetchRuns() ([]azuredevops.PipelineRun, error) {
 	}
 	return runs, nil
 }
+
+func fetchRunsFiltered(pipelineDefinitionId int) ([]azuredevops.PipelineRun, error) {
+	runs, err := client.GetPipelineRunsFiltered(pipelineDefinitionId, "", "", "", "", "")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching pipeline runs: %v", err)
+	}
+	return runs, nil
+}
+
 func _runsToTableData(runs []azuredevops.PipelineRun) string {
 
 	tableData := "Run ID|Build Number|Status|Result|Pipeline|Source Branch|Queue Time|Reason|Requested For\n"
@@ -175,6 +185,26 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 	// Details panel variables
 	var detailsVisible bool
 	var detailsPanelIsExpanded bool
+	// Actions specific for pipelines
+	actionsPanel := tview.NewFlex().
+		SetDirection(tview.FlexColumn)
+	// Dropdown variables
+	dropdown := tview.NewDropDown().
+		// SetLabel("Select an option (hit Enter): ").
+		SetFieldBackgroundColor(tcell.ColorBlack).
+		SetFieldTextColor(tcell.ColorWhite).
+		SetListStyles(
+			tcell.StyleDefault.
+				Background(tcell.ColorBlack).
+				Foreground(tcell.ColorWhite),
+			tcell.StyleDefault.
+				Background(tcell.ColorYellow).
+				Foreground(tcell.ColorBlack),
+		)
+	actionsPanel.AddItem(dropdown, 0, 1, false)
+	var pipelineIds []int
+	var currentPipelineDefinitionId int
+
 	table := tview.NewTable().
 		SetFixed(1, 1).
 		SetBorders(false).
@@ -196,6 +226,8 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 	}
 
+	mainWindow := tview.NewFlex().
+		SetDirection(tview.FlexRow)
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
 		AddItem(table, 0, 1, true)
@@ -210,6 +242,8 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		SetTitle(" Pipeline Run ")
 
 	flex.AddItem(detailsPanel, 0, 0, false)
+	mainWindow.AddItem(flex, 0, 1, true)
+	mainWindow.AddItem(actionsPanel, 1, 1, false)
 	// flex.ResizeItem(detailsPanel, 0, 0)
 
 	displayPipelineRunDetails := func(runs []azuredevops.PipelineRun, index int) {
@@ -282,14 +316,80 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 	}
 
+	// ** Pipeline dropdown **
+	// Handle dropdown options selection
+	handleDropdownSelection := func() {
+		dropdown.SetSelectedFunc(func(text string, index int) {
+			app.SetFocus(table)
+			currentPipelineDefinitionId = pipelineIds[index]
+
+			// Refresh runs based on filter options
+			go func() {
+				select {
+				case isFetching <- true:
+					dropdown.SetLabel("Fetching ")
+					// TODO Support other filters
+					var err error
+					if currentPipelineDefinitionId == 0 {
+						runs, err = fetchRuns()
+					} else {
+						runs, err = fetchRunsFiltered(currentPipelineDefinitionId)
+					}
+					<-isFetching
+					if err != nil {
+						log.Printf("Error fetching pipeline runs: %v", err)
+					}
+					if len(runs) > 0 {
+						app.QueueUpdateDraw(func() {
+							dropdown.SetLabel("")
+							currentIndex = 0
+							redrawRunsTable(table, runs)
+							closeDetailPanel()
+							app.SetFocus(table)
+							table.Select(0, 0)
+						})
+					} else {
+						app.QueueUpdateDraw(func() {
+							dropdown.SetLabel("")
+							table.SetCell(0, 0, tview.NewTableCell("No runs found. Try other filters (press \\ and Up or Down)").
+								SetTextColor(tcell.ColorRed).
+								SetAlign(tview.AlignCenter))
+						})
+					}
+				default:
+					// Another fetch is in progress, skip this one
+					return
+				}
+			}()
+		})
+	}
+	// Handle dropdown options display
+	setOptionsFromDefinitions := func(definitions []azuredevops.Pipeline) {
+		// Set options from definitions' names
+		pipelineNames := make([]string, len(definitions)+1)
+		pipelineNames[0] = "All"
+		pipelineIds = append(pipelineIds, 0)
+		for i, definition := range definitions {
+			pipelineNames[i+1] = definition.Name + " [" + strconv.Itoa(definition.ID) + "]"
+			pipelineIds = append(pipelineIds, definition.ID)
+		}
+		dropdown.SetOptions(pipelineNames, func(text string, index int) {
+			currentPipelineDefinitionId = pipelineIds[index] // Why even have this here when it gets repeated on setSelectedFunc?
+		})
+		dropdown.SetCurrentOption(0)
+		handleDropdownSelection()
+	}
+
 	loadData := func() {
 		select {
 		case isFetching <- true:
 			var err error
-			// definitions, err = fetchDefinitions()
-			// if err != nil {
-			// 	log.Fatalf("Error fetching pipeline definitions: %v", err)
-			// }
+			definitions, err := fetchDefinitions()
+			if err != nil {
+				<-isFetching // Release the lock
+				log.Fatalf("Error fetching pipeline definitions: %v", err)
+			}
+			setOptionsFromDefinitions(definitions)
 			runs, err = fetchRuns()
 			<-isFetching // Release the lock
 			app.SetFocus(table)
@@ -311,7 +411,7 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 	go loadData()
 
 	// Manage input capture
-	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	mainWindow.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Handle 'q' key to close details panel
 		// if activePanel == "details" && event.Rune() == 'q' && !searchMode {
 		if activePanel == "details" && event.Rune() == 'q' {
@@ -327,6 +427,12 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 			return nil
 		}
 
+		// Handle '\' key to activate dropdown
+		if event.Rune() == '\\' {
+			app.SetFocus(dropdown)
+			return nil
+		}
+
 		// Handle 'r' key to refresh the data
 		if event.Rune() == 'r' {
 			// dropdown.SetLabel("Refreshing...")
@@ -338,5 +444,5 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 
 	// For some reason, a parent mainWindow flex row does not propagate/handle resizeItem
 	// doesn't have an effect. While pullrequests.go works fine.
-	return "Pipelines", flex
+	return "Pipelines", mainWindow
 }
