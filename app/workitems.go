@@ -378,6 +378,32 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	actionsPanel.AddItem(dropdown, 0, 1, false)
 	searchStatus := tview.NewTextView().SetText("").SetTextAlign(tview.AlignRight)
 	actionsPanel.AddItem(searchStatus, 0, 1, false)
+	// Add buttons to the extensions
+	for _, extension := range ExtRegistry.GetFor("workitems") {
+		buttonWidth := len(extension.Name) + 6
+		button := tview.NewButton(extension.Name).
+			SetSelectedFunc(func() {
+				// Get the selected work item
+				row, _ := table.GetSelection()
+				if row >= 0 && row < len(workItems) {
+					selectedWorkItem := workItems[row]
+					// Get the extension ID from the registry
+					for id, ext := range ExtRegistry.Extensions {
+						if ext.Name == extension.Name {
+							// Call the extension's entry point with the work item
+							result, err := extension.EntryPoint(id).(func(interface{}) (string, error))(selectedWorkItem)
+							if err != nil {
+								log.Printf("Error executing extension %s: %v", extension.Name, err)
+							} else {
+								log.Printf("Extension %s executed successfully: %s", extension.Name, result)
+							}
+							break
+						}
+					}
+				}
+			})
+		actionsPanel.AddItem(button, buttonWidth, 0, false)
+	}
 
 	// Variable to track if details are visible
 	detailsVisible := false

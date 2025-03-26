@@ -23,6 +23,8 @@ var userProfileErr error
 
 var localTzLocation *time.Location
 
+var ExtRegistry *Registry
+
 // TODO Move to own file
 var DetailsPanelBorderColorExpanded = tcell.ColorYellow
 
@@ -53,6 +55,8 @@ func main() {
 	if userProfileErr != nil {
 		log.Printf("Error fetching user profile: %v", userProfileErr)
 	}
+	// Initialize registry
+	ExtRegistry = InitRegistry()
 
 	slides := []Slide{
 		WorkItemsPage,
