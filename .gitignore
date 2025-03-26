@@ -48,3 +48,4 @@ debug.test
 main_back.go
 sampledata
 lazynick
+__debug_bin*
