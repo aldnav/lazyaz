@@ -6,6 +6,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/aldnav/lazyaz/pkg/azuredevops"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -34,4 +36,37 @@ func GetHotkeyView() *tview.TextView {
 		SetText(helpTextBuilder.String()).
 		SetTextAlign(tview.AlignLeft).
 		SetDynamicColors(true)
+}
+
+func AttachWorkItemExtensions(actionsPanel *tview.Flex, table *tview.Table, workItems *[]azuredevops.WorkItem) {
+	for _, extension := range ExtRegistry.GetFor("workitems") {
+		buttonWidth := len(extension.Name) + 6
+		button := tview.NewButton(extension.Name)
+		button.
+			SetSelectedFunc(func() {
+				// Get the selected work item
+				row, _ := table.GetSelection()
+				idx := row - 1
+				if idx >= 0 && idx < len(*workItems) {
+					selectedWorkItem := (*workItems)[idx]
+					// Get the extension ID from the registry
+					for id, ext := range ExtRegistry.Extensions {
+						if ext.Name == extension.Name {
+							// Call the extension's entry point with the work item
+							// Ignore result for now
+							_, err := extension.EntryPoint(id).(func(interface{}) (string, error))(selectedWorkItem)
+							if err != nil {
+								button.SetBorderColor(tcell.ColorRed)
+								// log.Printf("Error executing extension %s: %v", extension.Name, err)
+							} else {
+								button.SetBorderColor(tcell.ColorGreen)
+								// log.Printf("Extension %s executed successfully: %s", extension.Name, result)
+							}
+							break
+						}
+					}
+				}
+			})
+		actionsPanel.AddItem(button, buttonWidth, 0, false)
+	}
 }

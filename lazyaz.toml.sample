@@ -1,7 +1,4 @@
 [extensions.export_to_template]
 name = "Export to Template"
 description = "Export a workitem to a template"
-templates_directory = "templates"               # Path to the directory containing the templates
 applies_to = ["workitems", "pullrequests"]
-templates.workitem = "workitem.md"
-templates.pullrequest = "pullrequest.md"

@@ -339,13 +339,15 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	}
 
 	// Create a details panel
-	detailsPanel := tview.NewTextView().
+	detailsPanel := tview.NewFlex().
+		SetDirection(tview.FlexRow)
+	detailsPanel.SetBorder(true).
+		SetTitle(" Work Item ")
+	detailsTextView := tview.NewTextView().
 		SetScrollable(true).
 		SetWordWrap(true)
-	detailsPanel.
-		SetDynamicColors(true).
-		SetBorder(true).
-		SetTitle(" Work Item ")
+	detailsTextView.SetDynamicColors(true)
+	detailsPanel.AddItem(detailsTextView, 0, 1, false)
 	detailsPanelIsExpanded := false
 
 	// Create a flex container
@@ -378,32 +380,12 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 	actionsPanel.AddItem(dropdown, 0, 1, false)
 	searchStatus := tview.NewTextView().SetText("").SetTextAlign(tview.AlignRight)
 	actionsPanel.AddItem(searchStatus, 0, 1, false)
+
 	// Add buttons to the extensions
-	for _, extension := range ExtRegistry.GetFor("workitems") {
-		buttonWidth := len(extension.Name) + 6
-		button := tview.NewButton(extension.Name).
-			SetSelectedFunc(func() {
-				// Get the selected work item
-				row, _ := table.GetSelection()
-				if row >= 0 && row < len(workItems) {
-					selectedWorkItem := workItems[row]
-					// Get the extension ID from the registry
-					for id, ext := range ExtRegistry.Extensions {
-						if ext.Name == extension.Name {
-							// Call the extension's entry point with the work item
-							result, err := extension.EntryPoint(id).(func(interface{}) (string, error))(selectedWorkItem)
-							if err != nil {
-								log.Printf("Error executing extension %s: %v", extension.Name, err)
-							} else {
-								log.Printf("Extension %s executed successfully: %s", extension.Name, result)
-							}
-							break
-						}
-					}
-				}
-			})
-		actionsPanel.AddItem(button, buttonWidth, 0, false)
-	}
+	detailActionsPanel := tview.NewFlex().
+		SetDirection(tview.FlexColumn)
+	detailsPanel.AddItem(detailActionsPanel, 1, 1, false)
+	AttachWorkItemExtensions(detailActionsPanel, table, &workItems)
 
 	// Variable to track if details are visible
 	detailsVisible := false
@@ -504,7 +486,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			// Display available data immediately
 			currentWorkItem := workItems[index]
 			details := workItemToDetailsData(&currentWorkItem)
-			detailsPanel.SetText(details)
+			detailsTextView.SetText(details)
 
 			if currentWorkItem.Details == nil {
 				loadingWorkItemID = currentWorkItem.ID
@@ -519,7 +501,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 						// Refresh with complete details
 						details := workItemToDetailsData(&workItems[index])
 						if requestedID == loadingWorkItemID {
-							detailsPanel.SetText(details)
+							detailsTextView.SetText(details)
 						}
 					})
 				}()
@@ -538,7 +520,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 		if detailsVisible {
 			loadingWorkItemID = workItems[currentIndex].ID
-			detailsPanel.SetText("")
+			detailsTextView.SetText("")
 			displayWorkItemDetails(workItems, currentIndex)
 		}
 	})
@@ -550,7 +532,7 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		mainFlex.RemoveItem(detailsPanel)
 		detailsVisible = false
 		detailsPanelIsExpanded = false
-		detailsPanel.SetText("")
+		detailsTextView.SetText("")
 		// Cleanup expanded details panel
 		detailsPanelIsExpanded = false
 	}
