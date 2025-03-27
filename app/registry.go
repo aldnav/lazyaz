@@ -27,12 +27,17 @@ func InitRegistry() *Registry {
 		log.Printf("Error loading configuration: %v", err)
 		return registry
 	}
-
 	log.Printf("Loaded configuration from %s", configPath)
 
 	// Register extensions from config
 	if appConfig.Extensions != nil {
 		for id, extension := range appConfig.Extensions {
+			entryPoint := extension.EntryPoint(id)
+			if entryPoint == nil {
+				// Try to find the entrypoint for each extension, if not found, skip the extension
+				log.Printf("Skipping extension %s, entry point not found", id)
+				continue
+			}
 			registry.Extensions[id] = extension
 			log.Printf("Registered extension: %s - %s", id, extension.Name)
 		}
