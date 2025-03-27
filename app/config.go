@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -41,14 +40,16 @@ func (e ExtensionConfig) EntryPoint(id string) interface{} {
 		}
 	}
 
-	// Use reflection to find the function dynamically
-	// This allows for extension without hardcoding
-	funcValue := reflect.ValueOf(ExportToTemplate)
+	// Map of available extension functions
+	extensionFuncs := map[string]interface{}{
+		"ExportToTemplate": ExportToTemplate,
+		// Add other extension functions here as they're created
+	}
 
-	// In a more complete implementation, we would search for the function
-	// in the package's exported functions using reflection
-
-	return funcValue.Interface()
+	if fn, exists := extensionFuncs[camelCase]; exists {
+		return fn
+	}
+	return nil
 }
 
 // LoadConfig loads the configuration from the specified file path
