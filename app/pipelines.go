@@ -392,7 +392,6 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 			setOptionsFromDefinitions(definitions)
 			runs, err = fetchRuns()
 			<-isFetching // Release the lock
-			app.SetFocus(table)
 			if err != nil {
 				log.Fatalf("Error fetching pipeline runs: %v", err)
 			}
