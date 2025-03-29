@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"reflect"
+	"runtime"
 	"text/template"
 
 	"github.com/aldnav/lazyaz/pkg/azuredevops"
@@ -137,4 +139,30 @@ func copyToClipboard(text string) error {
 	}
 	clipboard.Write(clipboard.FmtText, []byte(text))
 	return nil
+}
+
+// Open in browser
+func OpenInBrowser(domain interface{}) (string, error) {
+	url := ""
+	switch v := domain.(type) {
+	case azuredevops.WorkItem:
+		url = v.GetURL(_organization, _project)
+	case azuredevops.PullRequestDetails:
+		url = v.GetURL()
+	case azuredevops.PipelineRun:
+		url = v.GetWebURL()
+	default:
+		return "NOK", fmt.Errorf("unsupported domain type: %s", reflect.TypeOf(domain))
+	}
+	if url == "" {
+		return "NOK", fmt.Errorf("no URL found for domain type: %s", reflect.TypeOf(domain))
+	}
+
+	if runtime.GOOS == "windows" {
+		exec.Command("explorer", url).Run()
+	} else {
+		exec.Command("open", url).Run()
+	}
+
+	return "OK", nil
 }

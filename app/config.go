@@ -43,6 +43,7 @@ func (e ExtensionConfig) EntryPoint(id string) interface{} {
 	// Map of available extension functions
 	extensionFuncs := map[string]interface{}{
 		"ExportToTemplate": ExportToTemplate,
+		"OpenInBrowser":    OpenInBrowser,
 		// Add other extension functions here as they're created
 	}
 
