@@ -233,24 +233,32 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		AddItem(table, 0, 1, true)
 
 	// Create a details panel
-	detailsPanel := tview.NewTextView().
+	detailsPanel := tview.NewFlex().
+		SetDirection(tview.FlexRow)
+	detailsPanel.SetBorder(true).
+		SetTitle(" Pipeline Run ")
+	detailsTextView := tview.NewTextView().
 		SetScrollable(true).
 		SetWordWrap(true)
-	detailsPanel.
-		SetDynamicColors(true).
-		SetBorder(true).
-		SetTitle(" Pipeline Run ")
+	detailsTextView.SetDynamicColors(true)
+	detailsPanel.AddItem(detailsTextView, 0, 1, false)
 
 	flex.AddItem(detailsPanel, 0, 0, false)
 	mainWindow.AddItem(flex, 0, 1, true)
 	mainWindow.AddItem(actionsPanel, 1, 1, false)
 	// flex.ResizeItem(detailsPanel, 0, 0)
 
+	// Add buttons to the extensions
+	detailActionsPanel := tview.NewFlex().
+		SetDirection(tview.FlexColumn)
+	detailsPanel.AddItem(detailActionsPanel, 1, 1, false)
+	AttachPipelineRunExtensions(detailActionsPanel, table, &runs)
+
 	displayPipelineRunDetails := func(runs []azuredevops.PipelineRun, index int) {
 		if index >= 0 && index < len(runs) {
 			currentPipelineRun := runs[index]
 			details := pipelineRunToDetailsData(&currentPipelineRun)
-			detailsPanel.SetText(details)
+			detailsTextView.SetText(details)
 		}
 	}
 
@@ -264,7 +272,7 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 			currentIndex = 0
 		}
 		if detailsVisible {
-			detailsPanel.SetText("")
+			detailsTextView.SetText("")
 			displayCurrentPipelineRunDetails()
 		}
 	})
@@ -276,7 +284,7 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		flex.ResizeItem(detailsPanel, 0, 0)
 		detailsVisible = false
 		detailsPanelIsExpanded = false
-		detailsPanel.SetText("")
+		detailsTextView.SetText("")
 	}
 
 	toggleDetailsPanel := func() {

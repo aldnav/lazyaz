@@ -40,27 +40,46 @@ const DEFAULT_PIPELINERUN_TEMPLATE = `
 // ExportToTemplate exports the given domain object to a template
 // It accepts WorkItem, PullRequestDetails, or PipelineRun
 func ExportToTemplate(domain interface{}) (string, error) {
-	switch d := domain.(type) {
+	var tmpl string
+	var d interface{}
+
+	switch v := domain.(type) {
 	case azuredevops.WorkItem:
-		template, _ := loadTemplate("workitem")
-		applied, applyErr := applyTemplate(template, d)
-		if applyErr != nil {
-			log.Printf("Failed to apply template: %s", applyErr)
-			return "NOK", applyErr
-		}
-		// Copy the rendered template to clipboard
-		err := copyToClipboard(applied)
+		var err error
+		tmpl, err = loadTemplate("workitem")
 		if err != nil {
-			log.Printf("Failed to copy to clipboard: %s", err)
-			return "Failed to copy to clipboard", err
+			return "NOK", err
 		}
+		d = v
 	case azuredevops.PullRequestDetails:
-		log.Printf("Exporting PullRequestDetails: %+v", d)
+		var err error
+		tmpl, err = loadTemplate("pullrequest")
+		if err != nil {
+			return "NOK", err
+		}
+		d = v
 	case azuredevops.PipelineRun:
-		log.Printf("Exporting PipelineRun: %+v", d)
+		var err error
+		tmpl, err = loadTemplate("pipelinerun")
+		if err != nil {
+			return "NOK", err
+		}
+		d = v
 	default:
 		err := fmt.Errorf("unsupported domain type: %s", reflect.TypeOf(domain))
 		log.Printf("%v", err)
+		return "NOK", err
+	}
+
+	applied, applyErr := applyTemplate(tmpl, d)
+	if applyErr != nil {
+		log.Printf("Failed to apply template: %s", applyErr)
+		return "NOK", applyErr
+	}
+	// Copy the rendered template to clipboard
+	err := copyToClipboard(applied)
+	if err != nil {
+		log.Printf("Failed to copy to clipboard: %s", err)
 		return "NOK", err
 	}
 

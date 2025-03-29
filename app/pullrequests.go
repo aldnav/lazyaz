@@ -195,13 +195,15 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		AddItem(table, 0, 1, true)
 
 	// Create a details panel
-	detailsPanel := tview.NewTextView().
+	detailsPanel := tview.NewFlex().
+		SetDirection(tview.FlexRow)
+	detailsPanel.SetBorder(true).
+		SetTitle(" Pull Request ")
+	detailsTextView := tview.NewTextView().
 		SetScrollable(true).
 		SetWordWrap(true)
-	detailsPanel.
-		SetDynamicColors(true).
-		SetBorder(true).
-		SetTitle(" Pull Request ")
+	detailsTextView.SetDynamicColors(true)
+	detailsPanel.AddItem(detailsTextView, 0, 1, false)
 
 	// Actions specific for pull requests
 	actionsPanel := tview.NewFlex().
@@ -226,13 +228,19 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 	mainWindow.AddItem(tableFlex, 0, 1, true)
 	mainWindow.AddItem(actionsPanel, 1, 1, false)
 
+	// Add buttons to the extensions
+	detailActionsPanel := tview.NewFlex().
+		SetDirection(tview.FlexColumn)
+	detailsPanel.AddItem(detailActionsPanel, 1, 1, false)
+	AttachPullRequestExtensions(detailActionsPanel, table, &prs)
+
 	// Handle table enter key (View Pull Request details)
 
 	displayPullRequestDetails := func(prs []azuredevops.PullRequestDetails, index int) {
 		if index >= 0 && index < len(prs) {
 			currentPullRequest := prs[index]
 			details := prToDetailsData(&currentPullRequest)
-			detailsPanel.SetText(details)
+			detailsTextView.SetText(details)
 
 			// Fetch more details from `az repos pr show --id <id>`
 			if !currentPullRequest.IsDetailFetched {
@@ -242,7 +250,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 					app.QueueUpdateDraw(func() {
 						details := prToDetailsData(&prs[index])
 						if loadingPRID == currentPullRequest.ID {
-							detailsPanel.SetText(details)
+							detailsTextView.SetText(details)
 						}
 					})
 				}()
@@ -261,7 +269,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 			currentIndex = 0
 		}
 		if detailsVisible {
-			detailsPanel.SetText("")
+			detailsTextView.SetText("")
 			displayPullRequestDetails(prs, currentIndex)
 		}
 	})
@@ -273,7 +281,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		tableFlex.RemoveItem(detailsPanel)
 		detailsVisible = false
 		detailsPanelIsExpanded = false
-		detailsPanel.SetText("")
+		detailsTextView.SetText("")
 	}
 
 	toggleExpandedDetailsPanel := func() {

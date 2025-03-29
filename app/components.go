@@ -38,35 +38,48 @@ func GetHotkeyView() *tview.TextView {
 		SetDynamicColors(true)
 }
 
-func AttachWorkItemExtensions(actionsPanel *tview.Flex, table *tview.Table, workItems *[]azuredevops.WorkItem) {
-	for _, extension := range ExtRegistry.GetFor("workitems") {
-		buttonWidth := len(extension.Name) + 6
-		button := tview.NewButton(extension.Name)
-		button.
-			SetSelectedFunc(func() {
-				// Get the selected work item
-				row, _ := table.GetSelection()
-				idx := row - 1
-				if idx >= 0 && idx < len(*workItems) {
-					selectedWorkItem := (*workItems)[idx]
-					// Get the extension ID from the registry
-					for id, ext := range ExtRegistry.Extensions {
-						if ext.Name == extension.Name {
-							// Call the extension's entry point with the work item
-							// Ignore result for now
-							_, err := extension.EntryPoint(id).(func(interface{}) (string, error))(selectedWorkItem)
-							if err != nil {
-								button.SetBorderColor(tcell.ColorRed)
-								// log.Printf("Error executing extension %s: %v", extension.Name, err)
-							} else {
-								button.SetBorderColor(tcell.ColorGreen)
-								// log.Printf("Extension %s executed successfully: %s", extension.Name, result)
-							}
-							break
+func attachExtensionToPanel[T any](extension ExtensionConfig, actionsPanel *tview.Flex, table *tview.Table, items *[]T) {
+	buttonWidth := len(extension.Name) + 6
+	button := tview.NewButton(extension.Name)
+	button.
+		SetSelectedFunc(func() {
+			// Get the selected item
+			row, _ := table.GetSelection()
+			idx := row - 1
+			if idx >= 0 && idx < len(*items) {
+				selectedItem := (*items)[idx]
+				// Get the extension ID from the registry
+				for id, ext := range ExtRegistry.Extensions {
+					if ext.Name == extension.Name {
+						// Call the extension's entry point with the selected item
+						_, err := extension.EntryPoint(id).(func(interface{}) (string, error))(selectedItem)
+						if err != nil {
+							button.SetBorderColor(tcell.ColorRed)
+						} else {
+							button.SetBorderColor(tcell.ColorGreen)
 						}
+						break
 					}
 				}
-			})
-		actionsPanel.AddItem(button, buttonWidth, 0, false)
+			}
+		})
+	actionsPanel.AddItem(button, buttonWidth, 0, false)
+}
+
+func AttachWorkItemExtensions(actionsPanel *tview.Flex, table *tview.Table, workItems *[]azuredevops.WorkItem) {
+	for _, extension := range ExtRegistry.GetFor("workitems") {
+		attachExtensionToPanel(extension, actionsPanel, table, workItems)
+	}
+}
+
+func AttachPullRequestExtensions(actionsPanel *tview.Flex, table *tview.Table, pullRequests *[]azuredevops.PullRequestDetails) {
+	for _, extension := range ExtRegistry.GetFor("pullrequests") {
+		attachExtensionToPanel(extension, actionsPanel, table, pullRequests)
+	}
+}
+
+func AttachPipelineRunExtensions(actionsPanel *tview.Flex, table *tview.Table, pipelines *[]azuredevops.PipelineRun) {
+	for _, extension := range ExtRegistry.GetFor("pipelines") {
+		attachExtensionToPanel(extension, actionsPanel, table, pipelines)
 	}
 }
