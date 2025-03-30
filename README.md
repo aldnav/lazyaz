@@ -10,6 +10,9 @@ LazyAZ provides a convenient terminal interface to interact with Azure DevOps se
 
 - View work items
 - View pull requests
+- View pipeline runs
+- Export to templates
+- Open in browser
 
 ## Prerequisites
 
@@ -66,6 +69,29 @@ For convenience, a `.env.example` file is provided in the repository. You can co
 ```bash
 cp .env.example .env
 # Edit the .env file with your actual values
+```
+
+## Configuration
+
+A default configuration file is going to be generated for you if it doesn't exist already.
+It is located in `~/.config/lazyaz/lazyaz.toml`.
+
+### Enabling extensions
+
+Extensions are optional and can be enabled by adding the following to your `.lazyaz.toml` file:
+
+```toml
+[extensions.export_to_template]
+name = "Export to Template"
+description = "Export a workitem to a template"
+# Applies to workitems, pullrequests, pipelines
+applies_to = ["workitems", "pullrequests", "pipelines"]
+
+[extensions.open_in_browser]
+name = "Open in Browser"
+description = "Open in browser"
+# Or applies to none (disabled)
+applies_to = []
 ```
 
 ## Build
@@ -141,4 +167,3 @@ just test
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-

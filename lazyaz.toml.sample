@@ -1,4 +1,9 @@
 [extensions.export_to_template]
 name = "Export to Template"
 description = "Export a workitem to a template"
-applies_to = ["workitems", "pullrequests"]
+applies_to = ["workitems", "pullrequests", "pipelines"]
+
+[extensions.open_in_browser]
+name = "Open in Browser"
+description = "Open in browser"
+applies_to = ["workitems", "pullrequests", "pipelines"]
