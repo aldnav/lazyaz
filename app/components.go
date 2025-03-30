@@ -63,7 +63,10 @@ func attachExtensionToPanel[T any](extension ExtensionConfig, actionsPanel *tvie
 				}
 			}
 		})
+	button.SetStyle(tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack))
+	button.SetActivatedStyle(tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite))
 	actionsPanel.AddItem(button, buttonWidth, 0, false)
+	actionsPanel.AddItem(nil, 1, 1, false)
 }
 
 func AttachWorkItemExtensions(actionsPanel *tview.Flex, table *tview.Table, workItems *[]azuredevops.WorkItem) {
