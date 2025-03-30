@@ -1,0 +1,42 @@
+# .github/workflows/release.yml
+name: goreleaser
+
+on:
+  push:
+    # run only against tags
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+  # packages: write
+  # issues: write
+  # id-token: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      # only needed if using SBOMs
+      - uses: anchore/sbom-action/download-syft@v0.18.0
+      # More assembly might be required: Docker logins, GPG, etc.
+      # It all depends on your needs.
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          # either 'goreleaser' (default) or 'goreleaser-pro'
+          distribution: goreleaser
+          version: ${{ env.GITHUB_REF_NAME }}
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLISHER_TOKEN }}
+          # used to push the homebrew tap
+          GH_PAT: ${{ secrets.PUBLISHER_TOKEN }}

@@ -77,3 +77,13 @@ read-azure-org:
     ORG=$(grep "organization =" ~/.azure/azuredevops/config | awk -F "= " '{print $2}')
     echo "Azure DevOps Organization from config: $ORG"
 
+release-healthcheck:
+    goreleaser healthcheck
+
+release-build:
+    goreleaser build --snapshot --clean
+
+release-snapshot:
+    goreleaser release --snapshot --skip=publish --clean
+
+release-dryrun: release-healthcheck release-build
