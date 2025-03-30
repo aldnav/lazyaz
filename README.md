@@ -19,6 +19,25 @@ LazyAZ provides a convenient terminal interface to interact with Azure DevOps se
 - Azure DevOps account
 - Azure CLI installed with the Azure DevOps extension
 
+## Installation
+
+### Homebrew
+
+```bash
+brew tap aldnav/tap
+brew install aldnav/tap/lazyaz
+```
+
+### Others
+
+Head on to [releases page](https://github.com/aldnav/lazyaz/releases) and download the binary for your platform.
+
+### Run
+
+```bash
+lazyaz
+```
+
 ## Development Setup
 
 1. Clone the repository:
