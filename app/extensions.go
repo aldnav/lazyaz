@@ -158,10 +158,15 @@ func OpenInBrowser(domain interface{}) (string, error) {
 		return "NOK", fmt.Errorf("no URL found for domain type: %s", reflect.TypeOf(domain))
 	}
 
+	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		exec.Command("explorer", url).Run()
+		cmd = exec.Command("explorer", url)
 	} else {
-		exec.Command("open", url).Run()
+		cmd = exec.Command("open", url)
+	}
+
+	if err := cmd.Run(); err != nil {
+		return "NOK", fmt.Errorf("failed to open URL: %v", err)
 	}
 
 	return "OK", nil

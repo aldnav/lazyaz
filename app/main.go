@@ -108,10 +108,12 @@ func main() {
 		SetText("🚀 Connecting to Azure DevOps...").
 		SetTextAlign(tview.AlignRight).
 		SetTextColor(tcell.ColorYellow)
+	var connectionStatusText string
 
 	infoBar := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
 		AddItem(info, 0, 1, false).
+		AddItem(AnnouncementStatus, 0, 1, false).
 		AddItem(connectionStatus, 0, 1, false)
 
 	// Hotkeys
@@ -181,10 +183,12 @@ func main() {
 	app.EnableMouse(true)
 
 	if configErr != nil && userProfileErr != nil {
-		connectionStatus.SetText("🚨 Error connecting to Azure DevOps: Inspect logs for more details.")
+		connectionStatusText = "🚨 Error connecting to Azure DevOps: Inspect logs for more details."
+		connectionStatus.SetText(connectionStatusText)
 		connectionStatus.SetTextColor(tcell.ColorRed)
 	} else {
-		connectionStatus.SetText(fmt.Sprintf("✅ Connected to %s ", _organization))
+		connectionStatusText = fmt.Sprintf("✅ Connected to %s ", _organization)
+		connectionStatus.SetText(connectionStatusText)
 		connectionStatus.SetTextColor(tcell.ColorGreen)
 	}
 

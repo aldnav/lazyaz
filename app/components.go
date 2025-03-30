@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/aldnav/lazyaz/pkg/azuredevops"
 	"github.com/gdamore/tcell/v2"
@@ -54,9 +56,12 @@ func attachExtensionToPanel[T any](extension ExtensionConfig, actionsPanel *tvie
 						// Call the extension's entry point with the selected item
 						_, err := extension.EntryPoint(id).(func(interface{}) (string, error))(selectedItem)
 						if err != nil {
+							log.Printf("Error: %v", err)
 							button.SetBorderColor(tcell.ColorRed)
+							AnnounceError(fmt.Sprintf("❌ %s failed", extension.Name))
 						} else {
 							button.SetBorderColor(tcell.ColorGreen)
+							Announce(fmt.Sprintf("✅ [green]%s done[white]", extension.Name), 0)
 						}
 						break
 					}
@@ -85,4 +90,39 @@ func AttachPipelineRunExtensions(actionsPanel *tview.Flex, table *tview.Table, p
 	for _, extension := range ExtRegistry.GetFor("pipelines") {
 		attachExtensionToPanel(extension, actionsPanel, table, pipelines)
 	}
+}
+
+var AnnouncementStatus = tview.NewTextView().
+	SetTextAlign(tview.AlignCenter).
+	SetTextColor(tcell.ColorYellow).
+	SetDynamicColors(true)
+
+type Announcement struct {
+	message  string
+	duration int
+}
+
+func AnnounceToStatusBar(theTextView *tview.TextView, announcement Announcement) {
+	theTextView.SetText(announcement.message)
+	duration := announcement.duration
+	if duration == 0 {
+		duration = 5
+	}
+	go func() {
+		time.Sleep(time.Duration(duration) * time.Second)
+		app.QueueUpdateDraw(func() {
+			theTextView.SetText("")
+		})
+	}()
+}
+
+func Announce(message string, duration int) {
+	if duration == 0 {
+		duration = 5
+	}
+	AnnounceToStatusBar(AnnouncementStatus, Announcement{message: message, duration: duration})
+}
+
+func AnnounceError(message string) {
+	Announce(fmt.Sprintf("[red]%s[white]", message), 0)
 }
