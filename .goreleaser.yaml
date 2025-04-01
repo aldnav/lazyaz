@@ -43,7 +43,6 @@ sboms:
   - artifacts: archive
 
 changelog:
-  sort: asc
   filters:
     exclude:
       - "^docs:"
