@@ -62,7 +62,7 @@ universal_binaries:
 brews:
   - name: lazyaz
     homepage: https://github.com/aldnav/lazyaz
-    description: "A terminal-based UI application for interacting with Azure DevOps"
+    description: "Terminal-based UI application for interacting with Azure DevOps"
     commit_author:
       name: Aldrin Navarro
       email: aldrinnavarro16@gmail.com
