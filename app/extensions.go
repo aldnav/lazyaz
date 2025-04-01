@@ -8,10 +8,10 @@ import (
 	"os/exec"
 	"reflect"
 	"runtime"
+	"strings"
 	"text/template"
 
 	"github.com/aldnav/lazyaz/pkg/azuredevops"
-	"golang.design/x/clipboard"
 )
 
 const DEFAULT_WORKITEM_TEMPLATE = `
@@ -38,6 +38,9 @@ const DEFAULT_PIPELINERUN_TEMPLATE = `
 
 {{.BuildNumber}}
 `
+
+// ErrNoClipboard is returned when no clipboard utility is available
+var ErrNoClipboard = fmt.Errorf("no clipboard utility found (install xsel or xclip)")
 
 // ExportToTemplate exports the given domain object to a template
 // It accepts WorkItem, PullRequestDetails, or PipelineRun
@@ -132,13 +135,52 @@ func applyTemplate(thetemplate string, domain interface{}) (string, error) {
 	return rendered.String(), nil
 }
 
+// copyToClipboard copies the given text to the clipboard
 func copyToClipboard(text string) error {
-	err := clipboard.Init()
-	if err != nil {
-		return fmt.Errorf("failed to initialize clipboard: %s", err)
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	case "windows":
+		cmd = exec.Command("clip")
+	case "linux":
+		// Try xsel first, fall back to xclip
+		if _, err := exec.LookPath("xsel"); err == nil {
+			cmd = exec.Command("xsel", "-bi")
+		} else if _, err := exec.LookPath("xclip"); err == nil {
+			cmd = exec.Command("xclip", "-selection", "clipboard")
+		} else {
+			return ErrNoClipboard
+		}
+	default:
+		return fmt.Errorf("unsupported platform")
 	}
-	clipboard.Write(clipboard.FmtText, []byte(text))
-	return nil
+
+	cmd.Stdin = strings.NewReader(text)
+	return cmd.Run()
+}
+
+// CheckClipboardUtility checks if the clipboard utility is available
+func CheckClipboardUtility() bool {
+	switch runtime.GOOS {
+	case "darwin":
+		// macOS uses pbcopy which is built-in
+		return true
+	case "windows":
+		// Windows uses clip which is built-in
+		return true
+	case "linux":
+		// Linux needs xsel or xclip
+		if _, err := exec.LookPath("xsel"); err == nil {
+			return true
+		}
+		if _, err := exec.LookPath("xclip"); err == nil {
+			return true
+		}
+		return false
+	default:
+		return false
+	}
 }
 
 // Open in browser

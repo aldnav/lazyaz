@@ -27,6 +27,7 @@ type ExtensionConfig struct {
 	Description        string   `toml:"description"`
 	TemplatesDirectory string   `toml:"templates_directory"`
 	AppliesTo          []string `toml:"applies_to"`
+	CanInitialize      bool     `toml:"-"`
 }
 
 // EntryPoint returns the function corresponding to the extension ID
@@ -51,6 +52,17 @@ func (e ExtensionConfig) EntryPoint(id string) interface{} {
 		return fn
 	}
 	return nil
+}
+
+// Allow extension to know ahead if it can initialize. By default, it is true. Also returns reason if it cannot initialize.
+func (e ExtensionConfig) TryInitialize(id string) (bool, string) {
+	// If export_to_template, check if clipboard utility is installed
+	if id == "export_to_template" {
+		if !CheckClipboardUtility() {
+			return false, "Clipboard utility not found. Please install xsel or xclip."
+		}
+	}
+	return true, ""
 }
 
 // LoadConfig loads the configuration from the specified file path

@@ -49,3 +49,4 @@ main_back.go
 sampledata
 lazynick
 __debug_bin*
+gen_config.yml

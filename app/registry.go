@@ -32,6 +32,11 @@ func InitRegistry() *Registry {
 	// Register extensions from config
 	if appConfig.Extensions != nil {
 		for id, extension := range appConfig.Extensions {
+			canInitialize, reason := extension.TryInitialize(id)
+			if !canInitialize {
+				log.Printf("Skipping extension %s, cannot initialize: %s", id, reason)
+				continue
+			}
 			entryPoint := extension.EntryPoint(id)
 			if entryPoint == nil {
 				// Try to find the entrypoint for each extension, if not found, skip the extension

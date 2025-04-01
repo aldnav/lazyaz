@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -56,9 +55,12 @@ func attachExtensionToPanel[T any](extension ExtensionConfig, actionsPanel *tvie
 						// Call the extension's entry point with the selected item
 						_, err := extension.EntryPoint(id).(func(interface{}) (string, error))(selectedItem)
 						if err != nil {
-							log.Printf("Error: %v", err)
 							button.SetBorderColor(tcell.ColorRed)
-							AnnounceError(fmt.Sprintf("❌ %s failed", extension.Name))
+							if err == ErrNoClipboard {
+								AnnounceError(fmt.Sprintf("❌ %s failed: no clipboard utility found (install xsel or xclip)", extension.Name))
+							} else {
+								AnnounceError(fmt.Sprintf("❌ %s failed", extension.Name))
+							}
 						} else {
 							button.SetBorderColor(tcell.ColorGreen)
 							Announce(fmt.Sprintf("✅ [green]%s done[white]", extension.Name), 0)
