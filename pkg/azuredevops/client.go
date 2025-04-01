@@ -107,7 +107,11 @@ func readConfigFromFile() (string, string) {
 
 	// Check if file exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return "", ""
+		// Try this file instead
+		configPath = filepath.Join(home, ".azure", "config")
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			return "", ""
+		}
 	}
 
 	// Open and read the config file

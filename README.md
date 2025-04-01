@@ -23,6 +23,8 @@ LazyAZ provides a convenient terminal interface to interact with Azure DevOps se
 
 ### Homebrew
 
+Mac and Linux users with Homebrew installed can install `lazyaz` using the following command:
+
 ```bash
 brew tap aldnav/tap
 brew install aldnav/tap/lazyaz
@@ -32,10 +34,16 @@ brew install aldnav/tap/lazyaz
 
 Head on to [releases page](https://github.com/aldnav/lazyaz/releases) and download the binary for your platform.
 
-### Run
+### Get started
 
 ```bash
-lazyaz
+az login
+# If you are having trouble signing in, try this:
+# az login --allow-no-subscriptions
+# az login --tenant-id <tenant-id>  # From one of the tenant IDs of the previous command
+az devops configure --defaults organization=https://dev.azure.com/your-organization
+az devops configure --defaults project=your-project
+lazyaz  # Or ./lazyaz.exe if on Windows
 ```
 
 ## Development Setup

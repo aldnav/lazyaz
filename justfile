@@ -75,7 +75,12 @@ clean-all: clean clean-logs
 # Read Azure DevOps organization from config file
 read-azure-org:
     #!/usr/bin/env bash
+    # Try azuredevops config first
     ORG=$(grep "organization =" ~/.azure/azuredevops/config | awk -F "= " '{print $2}')
+    if [ -z "$ORG" ]; then
+        # If empty, try main azure config
+        ORG=$(grep "^organization =" ~/.azure/config | awk -F "= " '{print $2}')
+    fi
     echo "Azure DevOps Organization from config: $ORG"
 
 release-healthcheck:
