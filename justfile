@@ -25,7 +25,7 @@ run: build
 # Run the application directly (alternative to run.sh)
 run-direct:
     #!/usr/bin/env bash
-    # Create logs directory if it doesn't exist
+    # Create logs directory if it doesnt exist
     mkdir -p {{log_dir}}
     
     # Set log file with timestamp
@@ -62,6 +62,7 @@ run-direct:
 clean:
     go clean
     rm -rf bin/
+    rm -rf dist/
     rm -f {{binary_name}}
 
 # Clean logs
