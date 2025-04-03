@@ -63,8 +63,19 @@ type UserProfile struct {
 	Username    string `json:"-"` // Without the email domain
 }
 
+func checkAzureCLI() {
+	if _, err := exec.LookPath("az"); err != nil {
+		log.Fatal("[ERROR] Azure CLI is not installed. To install, please visit https://learn.microsoft.com/en-us/cli/azure/install-azure-cli")
+	}
+	if _, azureDevopsErr := runAzCommand("extension", "show", "--name", "azure-devops"); azureDevopsErr != nil {
+		log.Fatal("[ERROR] Azure DevOps extension is not installed. Please install it using 'az extension add -n azure-devops'")
+	}
+}
+
 // NewConfig creates a new Config, first trying to read from config file, then falling back to environment variables
 func NewConfig() (*Config, error) {
+	checkAzureCLI()
+
 	// Try to read organization and project from config file first
 	org, project := readConfigFromFile()
 
@@ -166,9 +177,6 @@ func readConfigFromFile() (string, string) {
 
 // NewClient creates a new Azure DevOps client
 func NewClient(config *Config) *Client {
-	if _, azureDevopsErr := runAzCommand("extension", "show", "--name", "azure-devops"); azureDevopsErr != nil {
-		log.Fatal("[ERROR] Azure DevOps extension is not installed. Please install it using 'az extension add -n azure-devops'")
-	}
 	return &Client{
 		Config: config,
 	}
