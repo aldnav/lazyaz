@@ -166,6 +166,9 @@ func readConfigFromFile() (string, string) {
 
 // NewClient creates a new Azure DevOps client
 func NewClient(config *Config) *Client {
+	if _, azureDevopsErr := runAzCommand("extension", "show", "--name", "azure-devops"); azureDevopsErr != nil {
+		log.Fatal("[ERROR] Azure DevOps extension is not installed. Please install it using 'az extension add -n azure-devops'")
+	}
 	return &Client{
 		Config: config,
 	}
