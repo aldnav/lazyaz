@@ -46,6 +46,12 @@ az devops configure --defaults project=your-project
 lazyaz  # Or ./lazyaz.exe if on Windows
 ```
 
+For diagnostics, run:
+
+```bash
+lazyaz doctor
+```
+
 ## Development Setup
 
 1. Clone the repository:

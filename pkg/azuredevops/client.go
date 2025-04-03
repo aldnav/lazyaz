@@ -72,6 +72,40 @@ func checkAzureCLI() {
 	}
 }
 
+func Doctor() {
+	recommendations := []string{}
+
+	if _, err := exec.LookPath("az"); err != nil {
+		fmt.Println("\033[31mX\033[0m Azure CLI")
+		recommendations = append(recommendations, "Azure CLI is not installed. To install, please visit https://learn.microsoft.com/en-us/cli/azure/install-azure-cli")
+	} else {
+		fmt.Println("\033[32m✓\033[0m Azure CLI")
+	}
+
+	if _, azureDevopsErr := runAzCommand("extension", "show", "--name", "azure-devops"); azureDevopsErr != nil {
+		fmt.Println("\033[31mX\033[0m Azure DevOps extension")
+		recommendations = append(recommendations, "Azure DevOps extension is not installed. Please install it using 'az extension add -n azure-devops'.")
+	} else {
+		fmt.Println("\033[32m✓\033[0m Azure DevOps extension")
+	}
+
+	if _, loginErr := runAzCommand("account", "show"); loginErr != nil {
+		fmt.Println("\033[31mX\033[0m Azure CLI login")
+		recommendations = append(recommendations, "Azure CLI is not logged in. Please run 'az login' to setup account.")
+		recommendations = append(recommendations, "Also while here, you can run 'az devops configure --defaults project=my-project-name organization=https://dev.azure.com/organizationName' to setup your default organization and project.")
+	} else {
+		fmt.Println("\033[32m✓\033[0m Azure CLI login")
+	}
+
+	if len(recommendations) > 0 {
+		fmt.Println("Recommendations:")
+		for _, recommendation := range recommendations {
+			fmt.Println("  - " + recommendation)
+		}
+	}
+
+}
+
 // NewConfig creates a new Config, first trying to read from config file, then falling back to environment variables
 func NewConfig() (*Config, error) {
 	checkAzureCLI()

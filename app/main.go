@@ -29,6 +29,16 @@ var ExtRegistry *Registry
 var DetailsPanelBorderColorExpanded = tcell.ColorYellow
 
 func main() {
+	cliArgs := os.Args[1:]
+
+	if len(cliArgs) > 0 {
+		switch cliArgs[0] {
+		case "doctor":
+			azuredevops.Doctor()
+			os.Exit(0)
+		}
+	}
+
 	log.SetOutput(os.Stderr)
 	log.SetPrefix("[lazyaz] ")
 	log.Println("Application starting...")
