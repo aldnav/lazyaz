@@ -1,15 +1,24 @@
 #!/bin/bash
 
+# Debug logging function
+debug_log() {
+    if [ "$LAZYAZ_DEBUG" = "1" ]; then
+        echo "$@" | tee -a "$LOG_FILE"
+    else
+        echo "$@" >> "$LOG_FILE"
+    fi
+}
+
 # Create logs directory if it doesn't exist
 mkdir -p logs
 
 # Set log file with timestamp
 LOG_FILE="logs/debug_$(date +%Y%m%d_%H%M%S).log"
-echo "Debug log will be saved to: $LOG_FILE"
+debug_log "Debug log will be saved to: $LOG_FILE"
 
 # Check if .env file exists and source it
 if [ -f .env ]; then
-    echo "Loading environment variables from .env file"
+    debug_log "Loading environment variables from .env file"
     source .env
 fi
 
@@ -27,7 +36,7 @@ if ! command -v az &> /dev/null; then
 fi
 
 # Check if Azure CLI is logged in
-echo "Checking Azure CLI login status..."
+debug_log "Checking Azure CLI login status..."
 if ! az account show &> /dev/null; then
     echo "You are not logged in to Azure CLI. Please run 'az login' first."
     exit 1
@@ -35,7 +44,7 @@ fi
 
 # Check if Azure DevOps extension is installed
 if ! az extension list --query "[].{name:name} | [].name" | grep "azure-devops" &> /dev/null; then
-    echo "Azure DevOps CLI extension is not installed. Installing it now..."
+    debug_log "Azure DevOps CLI extension is not installed. Installing it now..."
     az extension add --name azure-devops
 fi
 
@@ -45,11 +54,10 @@ if [ "$AZURE_DEVOPS_ORG" == "your-organization-name" ]; then
 fi
 
 # Run the application
-echo "---------------------------------------------" | tee -a "$LOG_FILE"
-echo "Starting LazyAZ application at $(date)" | tee -a "$LOG_FILE"
-echo "Using Azure DevOps Organization: $AZURE_DEVOPS_ORG" | tee -a "$LOG_FILE"
-echo "Using Azure CLI for authentication" | tee -a "$LOG_FILE"
-echo "---------------------------------------------" | tee -a "$LOG_FILE"
+debug_log "---------------------------------------------"
+debug_log "Starting LazyAZ application at $(date)"
+debug_log "Using Azure DevOps Organization: $AZURE_DEVOPS_ORG"
+debug_log "---------------------------------------------"
 
 # Run application and capture output to log file
 go run ./app 2>&1 | tee -a "$LOG_FILE"
@@ -58,8 +66,8 @@ go run ./app 2>&1 | tee -a "$LOG_FILE"
 # uncomment the line below and comment out the 'go run' line above
 # ./lazyaz 2>&1 | tee -a "$LOG_FILE"
 
-echo "---------------------------------------------" | tee -a "$LOG_FILE"
-echo "LazyAZ application exited at $(date)" | tee -a "$LOG_FILE"
-echo "Exit code: $?" | tee -a "$LOG_FILE"
-echo "Debug log saved to: $LOG_FILE" | tee -a "$LOG_FILE"
-echo "---------------------------------------------" | tee -a "$LOG_FILE"
+debug_log "---------------------------------------------"
+debug_log "LazyAZ application exited at $(date)"
+debug_log "Exit code: $?"
+debug_log "Debug log saved to: $LOG_FILE"
+debug_log "---------------------------------------------"

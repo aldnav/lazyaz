@@ -67,6 +67,20 @@ lazyaz doctor
    go mod download
    ```
 
+3. (Optional) Run the application with debug logging:
+
+   Enable the environment variable `LAZYAZ_DEBUG`:
+
+   ```bash
+   export LAZYAZ_DEBUG=1
+   ```
+
+   Or run the application with debug logging:
+
+   ```bash
+   LAZYAZ_DEBUG=1 ./lazyaz
+   ```
+
 ## Authentication
 
 Make sure you have logged in with Azure CLI before using the application:

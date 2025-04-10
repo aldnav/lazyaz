@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +14,15 @@ import (
 	"strings"
 	"time"
 )
+
+var logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+	Level: func() slog.Level {
+		if os.Getenv("LAZYAZ_DEBUG") == "1" {
+			return slog.LevelDebug
+		}
+		return slog.LevelInfo
+	}(),
+}))
 
 // execCommand is a variable that allows for mocking exec.Command in tests
 var execCommand = exec.Command
@@ -65,10 +74,12 @@ type UserProfile struct {
 
 func checkAzureCLI() {
 	if _, err := exec.LookPath("az"); err != nil {
-		log.Fatal("[ERROR] Azure CLI is not installed. To install, please visit https://learn.microsoft.com/en-us/cli/azure/install-azure-cli")
+		logger.Error("Azure CLI is not installed", "error", err)
+		os.Exit(1)
 	}
 	if _, azureDevopsErr := runAzCommand("extension", "show", "--name", "azure-devops"); azureDevopsErr != nil {
-		log.Fatal("[ERROR] Azure DevOps extension is not installed. Please install it using 'az extension add -n azure-devops'")
+		logger.Error("Azure DevOps extension is not installed", "error", azureDevopsErr)
+		os.Exit(1)
 	}
 }
 
@@ -378,13 +389,14 @@ func (c *Client) GetUserProfile() (*UserProfile, error) {
 	}
 
 	if profile.Mail == "" {
-		log.Println("[WARNING] User profile is empty from the ActiveDirectory profile! This is required for most operations. Please contact the administrator to fix this or setup your profile.")
-		log.Println("Trying to fetch from the command: ")
-		var _query = `user.name`
-		log.Println("az account show --query " + _query + " --output tsv")
-		output, err = runAzCommand("account", "show", "--query", _query, "--output", "tsv")
+		logger.Warn("User profile is empty from the ActiveDirectory profile",
+			"message", "This is required for most operations. Please contact the administrator to fix this or setup your profile.")
+		logger.Debug("Trying to fetch from the command")
+		logger.Debug("Command", "command", "az account show --query user.name --output tsv")
+		output, err = runAzCommand("account", "show", "--query", "user.name", "--output", "tsv")
 		if err != nil {
-			log.Println("[ERROR] Failed to fetch user profile from az account show command")
+			logger.Error("Failed to fetch user profile from az account show command", "error", err)
+			return nil, err
 		} else if len(output) > 0 {
 			profile.Mail = strings.TrimSuffix(string(output), "\n")
 			profile.Username = strings.Split(profile.Mail, "@")[0]
@@ -392,7 +404,8 @@ func (c *Client) GetUserProfile() (*UserProfile, error) {
 	}
 
 	if profile.Mail == "" {
-		log.Println("[WARNING] User profile is empty! This is required for most operations. Please contact the administrator to fix this or setup your profile.")
+		logger.Warn("User profile is empty",
+			"message", "This is required for most operations. Please contact the administrator to fix this or setup your profile.")
 		return nil, fmt.Errorf("cannot continue without a user profile mail")
 	}
 

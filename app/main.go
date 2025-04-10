@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
@@ -13,6 +13,15 @@ import (
 )
 
 type Slide func(nextSlide func()) (title string, content tview.Primitive)
+
+var logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+	Level: func() slog.Level {
+		if os.Getenv("LAZYAZ_DEBUG") == "1" {
+			return slog.LevelDebug
+		}
+		return slog.LevelInfo
+	}(),
+}))
 
 var app = tview.NewApplication()
 var activePanel string
@@ -39,23 +48,21 @@ func main() {
 		}
 	}
 
-	log.SetOutput(os.Stderr)
-	log.SetPrefix("[lazyaz] ")
-	log.Println("Application starting...")
+	logger.Debug("Application starting...")
 	var err error
 	localTzLocation, err = time.LoadLocation("Local")
 	if err != nil {
-		log.Printf("Error loading local timezone: %v\n", err)
-		log.Println("Using UTC")
+		logger.Error("Error loading local timezone", "error", err)
+		logger.Debug("Using UTC")
 		localTzLocation = time.UTC
 	} else {
-		log.Printf("Using local timezone: %v\n", localTzLocation)
+		logger.Debug("Using local timezone", "timezone", localTzLocation)
 	}
 
 	// Integrate with Azure DevOps early on init
 	config, configErr := azuredevops.NewConfig()
 	if configErr != nil {
-		log.Printf("Configuration error: %v", configErr)
+		logger.Error("Configuration error", "error", configErr)
 	}
 	_organization = config.Organization
 	_project = config.Project
@@ -63,7 +70,7 @@ func main() {
 	// Get current user
 	activeUser, userProfileErr = client.GetUserProfile()
 	if userProfileErr != nil {
-		log.Printf("Error fetching user profile: %v", userProfileErr)
+		logger.Error("Error fetching user profile", "error", userProfileErr)
 	}
 	// Initialize registry
 	ExtRegistry = InitRegistry()
@@ -204,8 +211,8 @@ func main() {
 
 	// Start the application.
 	if err := app.SetRoot(layout, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
-		log.Printf("Terminal UI error: %v", err)
+		logger.Error("Terminal UI error", "error", err)
 		panic(err)
 	}
-	log.Println("Application exiting...")
+	logger.Debug("Application exiting...")
 }

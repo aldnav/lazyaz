@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"slices"
 )
 
@@ -24,27 +24,27 @@ func InitRegistry() *Registry {
 	// Find and load configuration
 	appConfig, configPath, err := FindConfig()
 	if err != nil {
-		log.Printf("Error loading configuration: %v", err)
+		logger.Error("Error loading configuration", "error", err)
 		return registry
 	}
-	log.Printf("Loaded configuration from %s", configPath)
+	logger.Debug(fmt.Sprintf("Loaded configuration from %s", configPath))
 
 	// Register extensions from config
 	if appConfig.Extensions != nil {
 		for id, extension := range appConfig.Extensions {
 			canInitialize, reason := extension.TryInitialize(id)
 			if !canInitialize {
-				log.Printf("Skipping extension %s, cannot initialize: %s", id, reason)
+				logger.Warn(fmt.Sprintf("Skipping extension %s, cannot initialize: %s", id, reason))
 				continue
 			}
 			entryPoint := extension.EntryPoint(id)
 			if entryPoint == nil {
 				// Try to find the entrypoint for each extension, if not found, skip the extension
-				log.Printf("Skipping extension %s, entry point not found", id)
+				logger.Warn(fmt.Sprintf("Skipping extension %s, entry point not found", id))
 				continue
 			}
 			registry.Extensions[id] = extension
-			log.Printf("Registered extension: %s - %s", id, extension.Name)
+			logger.Debug(fmt.Sprintf("Registered extension: %s - %s", id, extension.Name))
 		}
 	}
 
