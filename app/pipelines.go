@@ -99,6 +99,11 @@ func redrawRunsTable(table *tview.Table, runs []azuredevops.PipelineRun) {
 					color = tcell.ColorGray
 				}
 
+				if column == 0 {
+					// ID column
+					color = tcell.ColorRed
+				}
+
 				if column == 2 {
 					// Status column
 					if _, ok := _runStatusColors[cell]; ok {
@@ -113,7 +118,7 @@ func redrawRunsTable(table *tview.Table, runs []azuredevops.PipelineRun) {
 					}
 				}
 
-				if column == 7 {
+				if column == 8 {
 					// Requested For column
 					if isSameAsUser(cell, activeUser) {
 						color = tcell.ColorGreen
@@ -141,11 +146,20 @@ func pipelineRunToDetailsData(run *azuredevops.PipelineRun) string {
 
 	var keyColor = "[blue]"
 	var valueColor = "[white]"
+	var highlightColor = ""
 
 	fmt.Fprintf(w, "%sRun ID%s\t%d\n", keyColor, valueColor, run.ID)
 	fmt.Fprintf(w, "%sBuild Number%s\t%s\n", keyColor, valueColor, run.BuildNumber)
 	fmt.Fprintf(w, "%sStatus%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(run.Status))
-	fmt.Fprintf(w, "%sResult%s\t%s\n", keyColor, valueColor, cases.Title(language.English).String(run.Result))
+	if run.Result == "failed" {
+		highlightColor = "[red]"
+	} else if run.Result == "succeeded" {
+		highlightColor = "[green]"
+	} else {
+		highlightColor = ""
+	}
+	fmt.Fprintf(w, "%sResult%s\t%s%s[white]\n", keyColor, valueColor, highlightColor, cases.Title(language.English).String(run.Result))
+	highlightColor = ""
 	fmt.Fprintf(w, "%sPipeline%s\t%s\n", keyColor, valueColor, run.DefinitionName)
 	fmt.Fprintf(w, "%sURL%s\t%s\n", keyColor, valueColor, run.GetWebURL())
 	fmt.Fprintf(w, "%sSource Branch%s\t%s\n", keyColor, valueColor, run.SourceBranch)
