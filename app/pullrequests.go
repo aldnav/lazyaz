@@ -167,7 +167,7 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 	var searchMatches []struct{ row, col int }
 	var currentMatchIndex int = -1
 	// Dropdown variables
-	var pullRequestFilter string
+	pullRequestFilter := "mine"
 
 	table := tview.NewTable().
 		SetFixed(1, 1).
@@ -495,15 +495,32 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		select {
 		case isFetching <- true:
 			var err error
-			prs, err = client.GetPRsCreatedByUser(activeUser.Mail, "")
+			if pullRequestFilter == "mine" {
+				prs, err = client.GetPRsCreatedByUser(activeUser.Mail, "")
+			} else if pullRequestFilter == "assigned-to-me" {
+				prs, err = client.GetPRsAssignedToUser(activeUser.Mail)
+			} else {
+				switch pullRequestFilter {
+				case "all":
+					prs, err = client.GetAllPRs()
+				case "active":
+					prs, err = client.GetActivePRs()
+				case "completed":
+					prs, err = client.GetCompletedPRs()
+				case "abandoned":
+					prs, err = client.GetAbandonedPRs()
+				}
+			}
 			if err != nil {
 				log.Printf("Error fetching pull requests: %v", err)
+				AnnounceError("❌ Error fetching pull requests")
+			} else {
+				Announce("✅ Refresh done", 3)
 			}
 			<-isFetching // Release the lock
 			if len(prs) > 0 {
 				app.QueueUpdateDraw(func() {
 					_redrawTable(table, prs)
-					dropdown.SetLabel("")
 					if detailsVisible {
 						displayCurrentPullRequestDetails()
 					}
@@ -514,7 +531,6 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 					table.SetCell(0, 0, tview.NewTableCell("No pull requests found. Try other filters (press \\ and Up or Down)").
 						SetTextColor(tcell.ColorRed).
 						SetAlign(tview.AlignCenter))
-					dropdown.SetLabel("")
 				})
 			}
 		default:
@@ -560,8 +576,8 @@ func PullRequestsPage(nextSlide func()) (title string, content tview.Primitive) 
 		}
 
 		// Handle 'r' key to refresh the data
-		if event.Rune() == 'r' {
-			dropdown.SetLabel("Refreshing...")
+		if event.Rune() == 'r' && !searchMode {
+			Announce("⏳ Refreshing PRs with filter: "+pullRequestFilter+"...", -1)
 			go loadData()
 			return nil
 		}

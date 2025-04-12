@@ -663,11 +663,13 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 			<-isFetching // Release the lock
 			if err != nil {
 				log.Printf("Error fetching work items: %v", err)
+				AnnounceError("❌ Error fetching work items")
+			} else {
+				Announce("✅ Refresh done", 3)
 			}
 			if len(workItems) > 0 {
 				app.QueueUpdateDraw(func() {
 					redrawTable(table, workItems)
-					dropdown.SetLabel("")
 					app.SetFocus(table)
 					if detailsVisible {
 						displayCurrentWorkItemDetails()
@@ -679,7 +681,6 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 					table.SetCell(0, 0, tview.NewTableCell("No work items found. Try other filters (press \\ and Up or Down)").
 						SetTextColor(tcell.ColorRed).
 						SetAlign(tview.AlignCenter))
-					dropdown.SetLabel("")
 					app.SetFocus(table)
 				})
 			}
@@ -726,8 +727,8 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 
 		// Handle 'r' key to refresh the data
-		if event.Rune() == 'r' {
-			dropdown.SetLabel("Refreshing...")
+		if event.Rune() == 'r' && !searchMode {
+			Announce("⏳ Refreshing work items with filter: "+workItemFilter+"...", -1)
 			go loadData()
 			return nil
 		}

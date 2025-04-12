@@ -396,12 +396,16 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 			if err != nil {
 				<-isFetching // Release the lock
 				log.Fatalf("Error fetching pipeline definitions: %v", err)
+				AnnounceError("❌ Error fetching pipeline definitions")
 			}
 			setOptionsFromDefinitions(definitions)
 			runs, err = fetchRuns()
 			<-isFetching // Release the lock
 			if err != nil {
 				log.Fatalf("Error fetching pipeline runs: %v", err)
+				AnnounceError("❌ Error fetching pipeline runs")
+			} else {
+				Announce("✅ Refresh done", 3)
 			}
 			redrawRunsTable(table, runs)
 			app.QueueUpdateDraw(func() {
@@ -441,8 +445,10 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 
 		// Handle 'r' key to refresh the data
+		// TODO Uncomment when search mode is implemented
+		// if event.Rune() == 'r' && !searchMode {
 		if event.Rune() == 'r' {
-			// dropdown.SetLabel("Refreshing...")
+			Announce("⏳ Refreshing pipelines...", -1)
 			go loadData()
 			return nil
 		}

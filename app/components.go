@@ -110,12 +110,14 @@ func AnnounceToStatusBar(theTextView *tview.TextView, announcement Announcement)
 	if duration == 0 {
 		duration = 5
 	}
-	go func() {
-		time.Sleep(time.Duration(duration) * time.Second)
-		app.QueueUpdateDraw(func() {
-			theTextView.SetText("")
-		})
-	}()
+	if duration > 0 {
+		go func() {
+			time.Sleep(time.Duration(duration) * time.Second)
+			app.QueueUpdateDraw(func() {
+				theTextView.SetText("")
+			})
+		}()
+	}
 }
 
 func Announce(message string, duration int) {
