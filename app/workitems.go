@@ -701,9 +701,6 @@ func WorkItemsPage(nextSlide func()) (title string, content tview.Primitive) {
 				mainWindow.AddItem(searchInput, 1, 0, false)
 				app.SetFocus(searchInput)
 				return nil
-			} else {
-				closeSearch()
-				return nil
 			}
 		}
 
