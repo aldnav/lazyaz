@@ -218,6 +218,14 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 	actionsPanel.AddItem(dropdown, 0, 1, false)
 	var pipelineIds []int
 	var currentPipelineDefinitionId int
+	// Search related variables
+	var searchText, previousSearchText string
+	var searchMode bool = false
+	var searchInput *tview.InputField
+	var searchMatches []struct{ row, col int }
+	var currentMatchIndex int = -1
+	searchStatus := tview.NewTextView().SetText("").SetTextAlign(tview.AlignRight)
+	actionsPanel.AddItem(searchStatus, 0, 1, false)
 
 	table := tview.NewTable().
 		SetFixed(1, 1).
@@ -402,6 +410,89 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		handleDropdownSelection()
 	}
 
+	// Handle search
+	closeSearch := func() {
+		searchMode = false
+		mainWindow.RemoveItem(searchInput)
+		app.SetFocus(table)
+	}
+
+	// Highlight the current match
+	highlightMatch := func() {
+		if currentMatchIndex >= 0 && currentMatchIndex < len(searchMatches) {
+			match := searchMatches[currentMatchIndex]
+
+			// Select the cell with the match
+			table.Select(match.row, match.col)
+
+			// Update the search input to show current match position - directly update instead of using QueueUpdateDraw
+			searchStatus.SetLabel(fmt.Sprintf("Match %d/%d",
+				currentMatchIndex+1, len(searchMatches)))
+		}
+	}
+
+	searchInput = tview.NewInputField().
+		SetLabel("/").
+		SetFieldWidth(30).
+		SetFieldTextColor(tcell.ColorGreen).
+		SetFieldBackgroundColor(tcell.ColorBlack).
+		SetDoneFunc(func(key tcell.Key) {
+			if key == tcell.KeyEnter {
+				// Perform search when Enter is pressed
+				searchText = strings.TrimSpace(searchInput.GetText())
+				if searchText == "" {
+					// Exit search mode if search text is empty
+					searchStatus.SetLabel("")
+					closeSearch()
+					return
+				}
+
+				if searchText == previousSearchText {
+					// Highlight next match (if any)
+					currentMatchIndex += 1
+				} else {
+					// Perform new search
+					searchMatches = nil
+					currentMatchIndex = -1
+					previousSearchText = searchText
+
+					// Search for the matches in the pull requests
+					var normalizedSearchText = strings.ToLower(searchText)
+					for idx, run := range runs {
+						// Search from the following:
+						// ID, Title, Status, Author, Created On, Approvals, Repository
+						if strings.Contains(strconv.Itoa(run.ID), normalizedSearchText) ||
+							strings.Contains(strings.ToLower(run.BuildNumber), normalizedSearchText) ||
+							strings.Contains(strings.ToLower(run.SourceBranch), normalizedSearchText) ||
+							strings.Contains(strings.ToLower(run.RequestedFor), normalizedSearchText) ||
+							strings.Contains(run.RepositoryName, normalizedSearchText) {
+							searchMatches = append(searchMatches, struct{ row, col int }{idx + 1, 0})
+						}
+					}
+
+					if len(searchMatches) > 0 {
+						// Highlight the first match
+						currentMatchIndex = 0
+					}
+				}
+
+				if currentMatchIndex >= len(searchMatches) {
+					currentMatchIndex = 0 // Wrap around
+				}
+
+				// Handle search results
+				if len(searchMatches) > 0 {
+					highlightMatch()
+				} else {
+					// Show "No matches" message
+					searchStatus.SetLabel("No matches!")
+				}
+				closeSearch()
+			} else if key == tcell.KeyEscape {
+				closeSearch()
+			}
+		})
+
 	loadData := func() {
 		select {
 		case isFetching <- true:
@@ -437,17 +528,30 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 
 	// Manage input capture
 	mainWindow.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Handle search mode activation with "/"
+		if event.Rune() == '/' {
+			if !searchMode {
+				searchMode = true
+				searchInput.SetText(searchText)
+				searchInput.SetLabel("/")
+				mainWindow.AddItem(searchInput, 1, 0, false)
+				app.SetFocus(searchInput)
+				return nil
+			} else {
+				closeSearch()
+				return nil
+			}
+		}
+
 		// Handle 'q' key to close details panel
-		// if activePanel == "details" && event.Rune() == 'q' && !searchMode {
-		if activePanel == "details" && event.Rune() == 'q' {
+		if activePanel == "details" && event.Rune() == 'q' && !searchMode {
 			closeDetailPanel()
 			app.SetFocus(table)
 			return nil
 		}
 
 		// Handle 'd' key to toggle details panel full view (if details are visible)
-		// if activePanel == "details" && event.Rune() == 'd' && !searchMode {
-		if activePanel == "details" && event.Rune() == 'd' {
+		if activePanel == "details" && event.Rune() == 'd' && !searchMode {
 			toggleExpandedDetailsPanel()
 			return nil
 		}
@@ -459,9 +563,7 @@ func PipelinesPage(nextSlide func()) (title string, content tview.Primitive) {
 		}
 
 		// Handle 'r' key to refresh the data
-		// TODO Uncomment when search mode is implemented
-		// if event.Rune() == 'r' && !searchMode {
-		if event.Rune() == 'r' {
+		if event.Rune() == 'r' && !searchMode {
 			Announce("⏳ Refreshing pipelines...", -1)
 			go loadData()
 			return nil
